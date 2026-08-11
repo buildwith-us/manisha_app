@@ -1,0 +1,25 @@
+# Local dev dependencies for the backend.
+# Production uses MongoDB Atlas + a managed Redis instance (PRD 8.2 / 8.11).
+services:
+  mongo:
+    image: mongo:7
+    container_name: manisha-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: manisha-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mongo-data:
+  redis-data:

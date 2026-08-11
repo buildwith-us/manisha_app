@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Secrets — PRD 8.5: .env is never committed
+# .mcp.json holds a live Google API key in its headers — keep it local.
+.mcp.json
+.env
+.env.local
+.env.*.local
+*.pem
+*-service-account.json
+firebase-service-account.json
+google-services.json
+GoogleService-Info.plist
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Expo / React Native
+.expo/
+.expo-shared/
+android/
+ios/
+*.jks
+*.keystore
+!debug.keystore
+*.aab
+*.apk
+*.ipa
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Test / coverage
+coverage/
