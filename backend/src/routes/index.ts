@@ -8,7 +8,8 @@ import orderRoutes from './order.routes';
 import productRoutes from './product.routes';
 import wishlistRoutes from './wishlist.routes';
 import { authenticate } from '../middleware/authenticate';
-import { cloudinaryConfigured, env, firebaseConfigured, razorpayConfigured } from '../config/env';
+import { cloudinaryConfigured, env, razorpayConfigured } from '../config/env';
+import { isFirebaseReady } from '../config/firebase';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.get('/health', (_req, res) => {
       integrations: {
         razorpay: razorpayConfigured,
         cloudinary: cloudinaryConfigured,
-        firebase: firebaseConfigured,
+        firebase: isFirebaseReady(),
       },
       timestamp: new Date().toISOString(),
     },

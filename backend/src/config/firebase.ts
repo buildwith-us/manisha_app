@@ -54,3 +54,11 @@ export function initFirebase(): void {
 export function getMessaging(): admin.messaging.Messaging | null {
   return messaging;
 }
+
+/**
+ * True only once the SDK has actually initialised. The env var being set is not
+ * enough — the service-account file may be missing or unparseable.
+ */
+export function isFirebaseReady(): boolean {
+  return messaging !== null;
+}
