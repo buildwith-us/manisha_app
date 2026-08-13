@@ -24,15 +24,17 @@ export const createProductSchema = z
     description: z.string().trim().min(1).max(4000),
     category: objectId,
     images: z.array(z.string().url()).max(10).default([]),
-    // PRD 4.7 — both prices are required with no auto-derived default.
+    // Retail is always required. Wholesale is opt-in: the admin form adds a
+    // product at retail only unless the wholesale toggle is turned on, so a
+    // missing wholesalePrice is a valid product, not an incomplete one.
     retailPrice: paise,
-    wholesalePrice: paise,
+    wholesalePrice: paise.optional(),
     stock: z.number().int().min(0).max(1_000_000),
     sku: z.string().trim().max(40).optional(),
     tags: z.array(z.string().trim().min(1).max(30)).max(20).default([]),
     isActive: z.boolean().default(true),
   })
-  .refine((data) => data.wholesalePrice <= data.retailPrice, {
+  .refine((data) => data.wholesalePrice === undefined || data.wholesalePrice <= data.retailPrice, {
     message: 'Wholesale price should not be higher than retail price',
     path: ['wholesalePrice'],
   });
@@ -44,7 +46,9 @@ export const updateProductSchema = z
     category: objectId.optional(),
     images: z.array(z.string().url()).max(10).optional(),
     retailPrice: paise.optional(),
-    wholesalePrice: paise.optional(),
+    // null clears an existing wholesale rate — that is how switching the
+    // toggle back off removes the discount instead of freezing the old price.
+    wholesalePrice: paise.nullable().optional(),
     stock: z.number().int().min(0).max(1_000_000).optional(),
     sku: z.string().trim().max(40).optional(),
     tags: z.array(z.string().trim().min(1).max(30)).max(20).optional(),
@@ -54,6 +58,7 @@ export const updateProductSchema = z
     (data) =>
       data.retailPrice === undefined ||
       data.wholesalePrice === undefined ||
+      data.wholesalePrice === null ||
       data.wholesalePrice <= data.retailPrice,
     { message: 'Wholesale price should not be higher than retail price', path: ['wholesalePrice'] },
   );

@@ -37,6 +37,15 @@ export class ApiError extends Error {
     return new ApiError(409, message, 'CONFLICT', details);
   }
 
+  /**
+   * A well-formed request whose values are still invalid — used for rules the
+   * request schema cannot decide on its own, such as one that has to be checked
+   * against stored state. Matches the 422 the Zod middleware returns.
+   */
+  static unprocessable(message: string, details?: unknown) {
+    return new ApiError(422, message, 'VALIDATION_ERROR', details);
+  }
+
   static tooManyRequests(message = 'Too many requests, please try again later', details?: unknown) {
     return new ApiError(429, message, 'RATE_LIMITED', details);
   }

@@ -1,3 +1,4 @@
+import { isHardcodedAdminPhone } from '../config/env';
 import { User, type IUser } from '../models/user.model';
 import { Notification } from '../models/notification.model';
 import { ApiError } from '../utils/ApiError';
@@ -45,23 +46,28 @@ export async function verifyOtpAndLogin(input: {
 
   await otpService.verifyOtp(phone, code);
 
+  // The owner's number is always an admin, whichever tab the login screen was
+  // on. That is what lets the admin sign in through the ordinary retail form
+  // instead of needing a separate admin login (ADMIN_PHONES).
+  const isAdminPhone = isHardcodedAdminPhone(phone);
+
   let user = await User.findOne({ phone });
 
   if (!user) {
     user = await User.create({
       phone,
-      accountType,
+      accountType: isAdminPhone ? 'admin' : accountType,
       // A wholesale signup starts pending and stays blocked until an admin
       // approves it — this is what stops retail users self-selecting the
       // discounted tier (PRD 4.1).
-      wholesaleStatus: accountType === 'wholesale' ? 'pending' : 'none',
-      ...(accountType === 'wholesale'
+      wholesaleStatus: accountType === 'wholesale' && !isAdminPhone ? 'pending' : 'none',
+      ...(accountType === 'wholesale' && !isAdminPhone
         ? { business: { ...application, appliedAt: new Date() } }
         : {}),
       lastLoginAt: new Date(),
     });
 
-    if (accountType === 'wholesale') {
+    if (accountType === 'wholesale' && !isAdminPhone) {
       await Notification.create({
         userId: user._id,
         audience: 'user',
@@ -75,9 +81,17 @@ export async function verifyOtpAndLogin(input: {
       throw ApiError.forbidden('This account has been deactivated. Please contact support.');
     }
 
+    // Repairs an account that was created as retail before this number was
+    // listed as an admin — otherwise the owner would be stuck as a customer.
+    if (isAdminPhone && user.accountType !== 'admin') {
+      user.accountType = 'admin';
+      user.wholesaleStatus = 'none';
+    }
+
     // An existing retail customer may apply for wholesale; a rejected applicant
     // may re-apply (PRD 4.1). Admin and staff roles are never client-assignable.
     const canApply =
+      !isAdminPhone &&
       accountType === 'wholesale' &&
       user.accountType !== 'admin' &&
       user.accountType !== 'staff' &&

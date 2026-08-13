@@ -9,7 +9,6 @@ import productRoutes from './product.routes';
 import wishlistRoutes from './wishlist.routes';
 import { authenticate } from '../middleware/authenticate';
 import { cloudinaryConfigured, env, razorpayConfigured } from '../config/env';
-import { isFirebaseReady } from '../config/firebase';
 
 const router = Router();
 
@@ -24,7 +23,9 @@ router.get('/health', (_req, res) => {
       integrations: {
         razorpay: razorpayConfigured,
         cloudinary: cloudinaryConfigured,
-        firebase: isFirebaseReady(),
+        // Push delivery is unwired — notifications are stored and read in-app
+        // until the replacement provider lands.
+        push: false,
       },
       timestamp: new Date().toISOString(),
     },

@@ -155,7 +155,7 @@ export async function checkout(
       image: product.images[0],
       quantity: cartItem.quantity,
       priceAtOrder: effectivePriceFor(product, viewer),
-      priceTier: priceTierFor(viewer),
+      priceTier: priceTierFor(viewer, product),
     });
   }
 

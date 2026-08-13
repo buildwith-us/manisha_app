@@ -53,9 +53,13 @@ export function serializeProduct(
 ): SerializedProduct {
   const wholesaleVisible = canSeeWholesalePricing(viewer?.accountType, viewer?.wholesaleStatus);
   // Staff/admin see wholesale pricing for management, but they are not buyers —
-  // only an approved wholesale account is charged the wholesale tier.
+  // only an approved wholesale account is charged the wholesale tier, and only
+  // on products that actually carry a wholesale rate.
   const buysAtWholesale =
-    viewer?.accountType === 'wholesale' && viewer.wholesaleStatus === 'approved';
+    viewer?.accountType === 'wholesale' &&
+    viewer.wholesaleStatus === 'approved' &&
+    product.wholesalePrice !== undefined &&
+    product.wholesalePrice !== null;
 
   return {
     id: product._id.toString(),
@@ -63,10 +67,12 @@ export function serializeProduct(
     description: product.description,
     category: serializeCategory((product as unknown as ProductLike).category),
     images: product.images,
-    price: buysAtWholesale ? product.wholesalePrice : product.retailPrice,
+    price: buysAtWholesale ? (product.wholesalePrice as number) : product.retailPrice,
     priceTier: buysAtWholesale ? 'wholesale' : 'retail',
     retailPrice: product.retailPrice,
-    ...(wholesaleVisible ? { wholesalePrice: product.wholesalePrice } : {}),
+    ...(wholesaleVisible && product.wholesalePrice !== undefined && product.wholesalePrice !== null
+      ? { wholesalePrice: product.wholesalePrice }
+      : {}),
     stock: product.stock,
     inStock: product.stock > 0,
     ...(product.sku ? { sku: product.sku } : {}),
@@ -87,15 +93,34 @@ export function serializeProducts(
 /**
  * The price the given viewer is charged. Used by cart and order pricing so the
  * tier decision lives in exactly one place.
+ *
+ * A product with no wholesale rate falls back to retail for everyone — that is
+ * what "added at retail only" means.
  */
 export function effectivePriceFor(product: IProduct, viewer: AuthenticatedUser): number {
-  return viewer.accountType === 'wholesale' && viewer.wholesaleStatus === 'approved'
-    ? product.wholesalePrice
-    : product.retailPrice;
+  const wholesale =
+    viewer.accountType === 'wholesale' &&
+    viewer.wholesaleStatus === 'approved' &&
+    product.wholesalePrice !== undefined &&
+    product.wholesalePrice !== null;
+
+  return wholesale ? (product.wholesalePrice as number) : product.retailPrice;
 }
 
-export function priceTierFor(viewer: AuthenticatedUser): 'retail' | 'wholesale' {
-  return viewer.accountType === 'wholesale' && viewer.wholesaleStatus === 'approved'
-    ? 'wholesale'
-    : 'retail';
+/**
+ * The tier a viewer shops at. Pass the product to get the tier actually applied
+ * to that line — a retail-only product bills an approved wholesale buyer at
+ * retail, and the order record has to say so rather than claim a discount that
+ * was never given. Called without a product it answers for the account overall,
+ * which is what the cart-level badge shows.
+ */
+export function priceTierFor(
+  viewer: AuthenticatedUser,
+  product?: IProduct,
+): 'retail' | 'wholesale' {
+  if (viewer.accountType !== 'wholesale' || viewer.wholesaleStatus !== 'approved') return 'retail';
+  if (product && (product.wholesalePrice === undefined || product.wholesalePrice === null)) {
+    return 'retail';
+  }
+  return 'wholesale';
 }

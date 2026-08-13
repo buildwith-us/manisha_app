@@ -1,5 +1,5 @@
 import Redis from 'ioredis';
-import { env, isProduction } from './env';
+import { devShortcutsAllowed, env, isProduction } from './env';
 import { logger } from './logger';
 
 /**
@@ -102,10 +102,16 @@ export function initRedis(): KeyValueStore {
   if (store) return store;
 
   if (!env.REDIS_URL) {
-    if (isProduction) {
+    if (!devShortcutsAllowed) {
       throw new Error('REDIS_URL is required in production — OTP and rate-limit state cannot be in-process.');
     }
-    logger.warn('REDIS_URL not set — using in-memory store (development only).');
+    if (isProduction) {
+      // Survives on a single instance only: OTP codes and rate-limit counters
+      // are lost on restart and are not shared between instances.
+      logger.warn('REDIS_URL not set — using the in-process store in PRODUCTION (UNSAFE_DEV_MODE).');
+    } else {
+      logger.warn('REDIS_URL not set — using in-memory store (development only).');
+    }
     store = new MemoryStore();
     return store;
   }

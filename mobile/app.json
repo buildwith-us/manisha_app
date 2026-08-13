@@ -25,8 +25,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.POST_NOTIFICATIONS"],
-      "googleServicesFile": "./google-services.json"
+      "permissions": ["android.permission.POST_NOTIFICATIONS"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -48,8 +47,8 @@
       ]
     ],
     "extra": {
-      "//": "Point this at your deployed API before building. Leave unset in local dev to use the per-platform localhost default (10.0.2.2 on the Android emulator).",
-      "apiUrl": null
+      "//": "The deployed API. An installed APK cannot reach a laptop on localhost, so release builds must point at a hosted URL. For local development set this back to null to use the per-platform default (10.0.2.2 on the Android emulator).",
+      "apiUrl": "https://manisha-fashion-backend.onrender.com/api/v1"
     }
   }
 }

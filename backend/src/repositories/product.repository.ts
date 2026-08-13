@@ -107,8 +107,19 @@ export async function create(data: ProductWriteInput): Promise<IProduct> {
   return product.populate('category', 'name slug');
 }
 
-export async function updateById(id: string, data: ProductWriteInput): Promise<IProduct | null> {
-  return Product.findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true })
+export async function updateById(
+  id: string,
+  data: ProductWriteInput,
+  options: { unsetWholesalePrice?: boolean } = {},
+): Promise<IProduct | null> {
+  return Product.findByIdAndUpdate(
+    id,
+    {
+      $set: data,
+      ...(options.unsetWholesalePrice ? { $unset: { wholesalePrice: '' } } : {}),
+    },
+    { new: true, runValidators: true },
+  )
     .populate('category', 'name slug')
     .exec();
 }

@@ -468,6 +468,120 @@ async function main(): Promise<void> {
       wholesaleAboveRetail.body,
     );
 
+    /* ── Hardcoded admin phone ────────────────────────────────────────── */
+    section('Admin sign-in without a separate admin login');
+
+    // ADMIN_PHONES defaults to this number. It signs in through the ordinary
+    // retail form and must still come back as an admin.
+    const owner = await login('+919345548984', 'retail');
+    check(
+      'the hardcoded number signs in as admin from the retail tab',
+      owner.user.accountType === 'admin',
+      owner.user,
+    );
+
+    const ownerCategory = await call('POST', '/products/categories', {
+      token: owner.accessToken,
+      body: { name: 'Owner Test Category' },
+    });
+    check('that account can immediately use admin routes', ownerCategory.status === 201, ownerCategory.body);
+
+    /* ── Retail-only products (wholesale toggle off) ──────────────────── */
+    section('Optional wholesale price');
+
+    const retailOnly = await call('POST', '/products', {
+      token: admin.accessToken,
+      body: {
+        name: 'Retail Only Bangle',
+        description: 'Added with the wholesale toggle off.',
+        category: categoryId,
+        retailPrice: 200000,
+        stock: 10,
+      },
+    });
+    check('a product can be created with no wholesale price', retailOnly.status === 201, retailOnly.body);
+    const retailOnlyId = retailOnly.body.data?.id;
+    check(
+      'no wholesalePrice comes back for a retail-only product',
+      retailOnly.body.data !== undefined && !('wholesalePrice' in retailOnly.body.data),
+      retailOnly.body.data,
+    );
+
+    // `wholesale` was approved earlier in this run.
+    const wholesaleView = await call('GET', `/products/${retailOnlyId}`, {
+      token: wholesale.accessToken,
+    });
+    check(
+      'an approved wholesale buyer is charged retail for a retail-only product',
+      wholesaleView.body.data?.price === 200000 && wholesaleView.body.data?.priceTier === 'retail',
+      wholesaleView.body.data,
+    );
+
+    const addRate = await call('PATCH', `/products/${retailOnlyId}`, {
+      token: admin.accessToken,
+      body: { wholesalePrice: 150000 },
+    });
+    check('turning the toggle on adds a wholesale rate', addRate.status === 200, addRate.body);
+
+    const nowDiscounted = await call('GET', `/products/${retailOnlyId}`, {
+      token: wholesale.accessToken,
+    });
+    check(
+      'the wholesale buyer now pays the wholesale rate',
+      nowDiscounted.body.data?.price === 150000 && nowDiscounted.body.data?.priceTier === 'wholesale',
+      nowDiscounted.body.data,
+    );
+
+    const clearRate = await call('PATCH', `/products/${retailOnlyId}`, {
+      token: admin.accessToken,
+      body: { wholesalePrice: null },
+    });
+    check('turning the toggle off clears the rate', clearRate.status === 200, clearRate.body);
+    check(
+      'the cleared rate is gone, not zero',
+      clearRate.body.data !== undefined && !('wholesalePrice' in clearRate.body.data),
+      clearRate.body.data,
+    );
+
+    const backToRetail = await call('GET', `/products/${retailOnlyId}`, {
+      token: wholesale.accessToken,
+    });
+    check(
+      'the wholesale buyer is back on the retail price',
+      backToRetail.body.data?.price === 200000 && backToRetail.body.data?.priceTier === 'retail',
+      backToRetail.body.data,
+    );
+
+    const stillCapped = await call('POST', '/products', {
+      token: admin.accessToken,
+      body: {
+        name: 'Bad wholesale product',
+        description: 'Wholesale above retail is still refused.',
+        category: categoryId,
+        retailPrice: 1000,
+        wholesalePrice: 5000,
+        stock: 1,
+      },
+    });
+    check(
+      'wholesale above retail is still rejected when supplied',
+      stillCapped.status === 422,
+      stillCapped.body,
+    );
+
+    // The request schema cannot catch this one: with no retailPrice in the body
+    // there is nothing to compare against, so the rule has to be enforced
+    // against the stored product.
+    const cappedAgainstStored = await call('PATCH', `/products/${retailOnlyId}`, {
+      token: admin.accessToken,
+      body: { wholesalePrice: 999900 },
+    });
+    check(
+      'a wholesale-only PATCH is still capped by the stored retail price',
+      cappedAgainstStored.status === 422,
+      cappedAgainstStored.body,
+    );
+
     /* ── Dashboard ────────────────────────────────────────────────────── */
     section('Admin dashboard (PRD 4.7)');
 
