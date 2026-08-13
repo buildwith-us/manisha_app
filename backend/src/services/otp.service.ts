@@ -52,15 +52,6 @@ async function dispatch(phone: string, code: string): Promise<void> {
       return;
     }
 
-    case 'firebase':
-      // Firebase Phone Auth issues and verifies the OTP on the client; the
-      // server never sends it. If the client confirms Firebase, switch the app
-      // to POST the resulting Firebase ID token to /auth/firebase/verify
-      // instead of calling this endpoint. See README "OTP providers".
-      throw ApiError.serviceUnavailable(
-        'OTP_PROVIDER=firebase is client-issued. Use the Firebase ID token exchange endpoint instead.',
-      );
-
     case 'console':
     default:
       if (isProduction) {

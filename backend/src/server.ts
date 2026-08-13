@@ -1,13 +1,11 @@
 import { createApp } from './app';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { env } from './config/env';
-import { initFirebase } from './config/firebase';
 import { logger } from './config/logger';
 import { disconnectRedis, initRedis } from './config/redis';
 
 async function bootstrap(): Promise<void> {
   initRedis();
-  initFirebase();
   await connectDatabase();
 
   const app = createApp();

@@ -27,7 +27,7 @@ const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('30m'),
   JWT_REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(90),
 
-  OTP_PROVIDER: z.enum(['console', 'msg91', 'firebase']).default('console'),
+  OTP_PROVIDER: z.enum(['console', 'msg91']).default('console'),
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
   OTP_TTL_SECONDS: z.coerce.number().int().positive().default(600),
   OTP_MAX_SEND_PER_HOUR: z.coerce.number().int().positive().default(5),
@@ -46,8 +46,6 @@ const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
-  FIREBASE_SERVICE_ACCOUNT_PATH: z.string().optional(),
-  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional(),
 
   COD_SHIPPING_CHARGE: z.coerce.number().int().nonnegative().default(5000),
   PREPAID_SHIPPING_CHARGE: z.coerce.number().int().nonnegative().default(0),
@@ -78,7 +76,4 @@ export const isDevelopment = env.NODE_ENV === 'development';
 export const razorpayConfigured = Boolean(env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET);
 export const cloudinaryConfigured = Boolean(
   env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET,
-);
-export const firebaseConfigured = Boolean(
-  env.FIREBASE_SERVICE_ACCOUNT_JSON || env.FIREBASE_SERVICE_ACCOUNT_PATH,
 );

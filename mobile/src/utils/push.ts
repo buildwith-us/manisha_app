@@ -4,12 +4,17 @@ import * as Device from 'expo-device';
 import { authApi } from '../api/endpoints';
 
 /**
- * PRD 4.6 / 8.4 — the backend pushes through Firebase Admin, so the app must
- * register its NATIVE device token (FCM on Android, APNs on iOS), not an Expo
- * push token. getDevicePushTokenAsync returns exactly that.
+ * PRD 4.6 / 8.1 — notification permissions and the local notification handler.
  *
- * Note: remote push requires a development build — it does not work in Expo Go
- * on Android from SDK 53 onward.
+ * Remote push is NOT wired: Firebase/FCM was removed from this project, and the
+ * backend has no push provider. Order updates and offers still arrive in the
+ * in-app notification list, which is served from the API — only out-of-app
+ * delivery is absent.
+ *
+ * To restore push, add a provider server-side (`deliverPush` in
+ * backend/src/services/notification.service.ts) and return its token here:
+ * Expo Push needs `getExpoPushTokenAsync`, native FCM/APNs needs
+ * `getDevicePushTokenAsync` plus the corresponding native config.
  */
 
 Notifications.setNotificationHandler({
@@ -45,26 +50,15 @@ export async function requestPushPermission(): Promise<PushPermission> {
   return requested.canAskAgain ? 'undetermined' : 'denied';
 }
 
-/** Registers this device's native token with the backend. Returns the token. */
+/**
+ * Requests permission only. There is no push provider to obtain a token from,
+ * so nothing is registered with the backend and null is returned — callers
+ * already treat null as "push unavailable" and fall back to the in-app list.
+ */
 export async function registerForPush(): Promise<string | null> {
   const permission = await requestPushPermission();
   if (permission !== 'granted') return null;
-
-  try {
-    const devicePushToken = await Notifications.getDevicePushTokenAsync();
-    const token = String(devicePushToken.data);
-
-    await authApi.registerDevice({
-      token,
-      platform: Platform.OS === 'ios' ? 'ios' : 'android',
-      deviceId: Device.osInternalBuildId ?? undefined,
-    });
-
-    return token;
-  } catch {
-    // A missing google-services.json / APNs key should not crash sign-in.
-    return null;
-  }
+  return null;
 }
 
 export async function unregisterFromPush(token: string): Promise<void> {

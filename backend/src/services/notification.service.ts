@@ -1,4 +1,3 @@
-import { getMessaging } from '../config/firebase';
 import { logger } from '../config/logger';
 import { Notification } from '../models/notification.model';
 import { User } from '../models/user.model';
@@ -6,9 +5,13 @@ import { ApiError } from '../utils/ApiError';
 import type { NotificationAudience } from '../types';
 
 /**
- * PRD 4.6 / 8.4 — push via FCM (Android + iOS through the APNs bridge), with
- * every message also persisted so the app can show an in-app notification list
- * (PRD 8.1 notificationSlice).
+ * PRD 4.6 / 8.1 — notifications are persisted so the app can show its in-app
+ * notification list (notificationSlice).
+ *
+ * Remote push delivery is currently not wired: the Firebase/FCM integration was
+ * removed from this project. Device tokens are still collected by
+ * /auth/devices so a future provider (Expo Push, OneSignal, APNs+FCM again) can
+ * be dropped into `deliverPush` without touching any caller.
  */
 
 export interface PushPayload {
@@ -18,51 +21,19 @@ export interface PushPayload {
   category?: 'order' | 'wholesale' | 'promotion' | 'system';
 }
 
-const FCM_BATCH_SIZE = 500;
-
-async function pushToTokens(tokens: string[], payload: PushPayload): Promise<number> {
-  const messaging = getMessaging();
-  if (!messaging || tokens.length === 0) return 0;
-
-  let delivered = 0;
-  const staleTokens: string[] = [];
-
-  for (let index = 0; index < tokens.length; index += FCM_BATCH_SIZE) {
-    const batch = tokens.slice(index, index + FCM_BATCH_SIZE);
-    try {
-      const response = await messaging.sendEachForMulticast({
-        tokens: batch,
-        notification: { title: payload.title, body: payload.body },
-        data: payload.data,
-        android: { priority: 'high' },
-        apns: { payload: { aps: { sound: 'default' } } },
-      });
-      delivered += response.successCount;
-
-      // Drop tokens FCM tells us are dead, so the list does not grow forever.
-      response.responses.forEach((result, position) => {
-        const code = result.error?.code;
-        if (
-          code === 'messaging/registration-token-not-registered' ||
-          code === 'messaging/invalid-argument'
-        ) {
-          const token = batch[position];
-          if (token) staleTokens.push(token);
-        }
-      });
-    } catch (error) {
-      logger.error('FCM multicast failed', error);
-    }
-  }
-
-  if (staleTokens.length > 0) {
-    await User.updateMany(
-      { 'fcmTokens.token': { $in: staleTokens } },
-      { $pull: { fcmTokens: { token: { $in: staleTokens } } } },
+/**
+ * No push provider is configured. Every notification is still written to the
+ * database above, so the in-app list stays correct — only the out-of-app
+ * delivery is absent. Returns the number delivered (always 0) so callers that
+ * report a delivery count keep working.
+ */
+async function pushToTokens(tokens: string[], _payload: PushPayload): Promise<number> {
+  if (tokens.length > 0) {
+    logger.debug(
+      `Push skipped for ${tokens.length} device token(s): no push provider configured.`,
     );
   }
-
-  return delivered;
+  return 0;
 }
 
 export async function notifyUser(userId: string, payload: PushPayload): Promise<void> {
