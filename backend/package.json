@@ -35,12 +35,10 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
-    "ioredis": "^5.5.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.10.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.0",
-    "rate-limit-redis": "^4.2.0",
     "razorpay": "^2.9.6",
     "typescript": "^5.7.3",
     "zod": "^3.24.2"

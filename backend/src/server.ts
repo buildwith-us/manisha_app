@@ -2,10 +2,10 @@ import { createApp } from './app';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { env } from './config/env';
 import { logger } from './config/logger';
-import { disconnectRedis, initRedis } from './config/redis';
+import { disconnectStore, initStore } from './config/store';
 
 async function bootstrap(): Promise<void> {
-  initRedis();
+  initStore();
   await connectDatabase();
 
   const app = createApp();
@@ -18,7 +18,7 @@ async function bootstrap(): Promise<void> {
     logger.info(`${signal} received — shutting down.`);
     server.close(async () => {
       await disconnectDatabase();
-      await disconnectRedis();
+      await disconnectStore();
       process.exit(0);
     });
     // Do not let a hung connection hold the process open forever.

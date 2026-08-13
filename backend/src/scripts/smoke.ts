@@ -42,7 +42,6 @@ async function main(): Promise<void> {
   // Set the environment before anything imports config/env.ts.
   process.env.NODE_ENV = 'development';
   process.env.MONGODB_URI = mongod.getUri('manisha_smoke');
-  process.env.REDIS_URL = '';
   process.env.PORT = '4599';
   process.env.API_PREFIX = '/api/v1';
   process.env.JWT_ACCESS_SECRET = 'smoke-test-access-secret-value-0123456789';
@@ -54,12 +53,12 @@ async function main(): Promise<void> {
 
   const { createApp } = await import('../app');
   const { connectDatabase, disconnectDatabase } = await import('../config/database');
-  const { initRedis } = await import('../config/redis');
+  const { initStore } = await import('../config/store');
   const { User } = await import('../models/user.model');
   const { Category } = await import('../models/category.model');
   const { Product } = await import('../models/product.model');
 
-  initRedis();
+  initStore();
   await connectDatabase();
 
   const app = createApp();

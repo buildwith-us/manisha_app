@@ -14,7 +14,6 @@ async function main(): Promise<void> {
   // Must be set before anything imports config/env.ts.
   process.env.NODE_ENV = 'development';
   process.env.MONGODB_URI = mongod.getUri('manisha_dev');
-  process.env.REDIS_URL = process.env.REDIS_URL ?? '';
   process.env.OTP_PROVIDER = process.env.OTP_PROVIDER ?? 'console';
   process.env.JWT_ACCESS_SECRET =
     process.env.JWT_ACCESS_SECRET ?? 'dev-only-access-secret-0123456789abcdef';
@@ -23,11 +22,11 @@ async function main(): Promise<void> {
 
   const { createApp } = await import('../app');
   const { connectDatabase } = await import('../config/database');
-  const { initRedis } = await import('../config/redis');
+  const { initStore } = await import('../config/store');
   const { env } = await import('../config/env');
   const { logger } = await import('../config/logger');
 
-  initRedis();
+  initStore();
   await connectDatabase();
 
   // Reuse the seed data so the catalogue is not empty on first launch.

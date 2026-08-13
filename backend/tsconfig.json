@@ -2,6 +2,10 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
+    // TS 6/7 deprecates this, but it is the only non-breaking value here: the
+    // package is CommonJS (no "type" in package.json), and "node16"/"nodenext"
+    // require an explicit .js extension on every relative import across the
+    // codebase. That migration is deliberate work, not a config edit.
     "moduleResolution": "node",
     "lib": ["ES2022"],
     "rootDir": "src",
@@ -15,11 +19,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "sourceMap": true,
-    "declaration": false,
-    "baseUrl": "src",
-    "paths": {
-      "@/*": ["*"]
-    }
+    "declaration": false
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

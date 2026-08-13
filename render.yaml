@@ -46,8 +46,6 @@ services:
         sync: false
 
       # ── Optional: absent means the feature degrades, not that boot fails ──
-      - key: REDIS_URL
-        sync: false
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET

@@ -2,13 +2,13 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { env, isProduction } from '../config/env';
 import { logger } from '../config/logger';
-import { getStore } from '../config/redis';
+import { getStore } from '../config/store';
 import { ApiError } from '../utils/ApiError';
 
 /**
  * PRD 8.7 — OTP send/verify.
  *
- * The OTP is never stored in plaintext: a bcrypt hash goes into Redis with a
+ * The OTP is never stored in plaintext: a bcrypt hash goes into the key-value store with a
  * short TTL. Sends are capped per phone number (and separately per IP by the
  * route's rate limiter) to prevent SMS-bombing, and repeated wrong attempts
  * trigger a temporary lockout on that number.

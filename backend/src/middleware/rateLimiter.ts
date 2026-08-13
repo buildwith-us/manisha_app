@@ -1,8 +1,6 @@
-import rateLimit, { type Options } from 'express-rate-limit';
-import RedisStore from 'rate-limit-redis';
+import rateLimit from 'express-rate-limit';
 import type { Request } from 'express';
 import { env } from '../config/env';
-import { getRedisClient } from '../config/redis';
 
 /**
  * PRD 8.6 / 8.11 — Rate Limiter stage.
@@ -10,22 +8,14 @@ import { getRedisClient } from '../config/redis';
  * Applied to every public endpoint, not just OTP: ~100 req/min per IP
  * generally, with much tighter limits on the auth endpoints.
  *
- * Counters live in Redis so they are shared across instances and survive a
- * restart; without Redis (local dev) express-rate-limit's in-memory store is
- * used instead.
+ * Counters live in express-rate-limit's in-process store. Redis was removed
+ * from this project, so they reset on restart and are per-instance — correct
+ * for a single instance, but a second one would each keep its own counts.
  */
-function buildStore(prefix: string): Options['store'] | undefined {
-  const client = getRedisClient();
-  if (!client) return undefined;
-  return new RedisStore({
-    prefix: `rl:${prefix}:`,
-    sendCommand: (...args: string[]) => client.call(...(args as [string, ...string[]])) as never,
-  });
-}
-
 interface LimiterOptions {
   windowMs: number;
   limit: number;
+  /** Retained for readability at the call sites; no longer a storage prefix. */
   prefix: string;
   message?: string;
 }
@@ -35,13 +25,12 @@ interface LimiterOptions {
  * fixed — rate limiting runs *before* JWT authentication — so req.user does
  * not exist yet at this stage and cannot be part of the key.
  */
-export function createRateLimiter({ windowMs, limit, prefix, message }: LimiterOptions) {
+export function createRateLimiter({ windowMs, limit, message }: LimiterOptions) {
   return rateLimit({
     windowMs,
     limit,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
-    store: buildStore(prefix),
     keyGenerator: (req: Request) => `ip:${req.ip ?? 'unknown'}`,
     message: {
       success: false,

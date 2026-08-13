@@ -20,7 +20,6 @@ const envSchema = z.object({
   API_PREFIX: z.string().default('/api/v1'),
 
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
-  REDIS_URL: z.string().optional(),
 
   JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be a long random value'),
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be a long random value'),
