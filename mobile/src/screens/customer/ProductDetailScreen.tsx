@@ -9,6 +9,7 @@ import { QuantityStepper } from '../../components/QuantityStepper';
 import { productApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { useAppDispatch, useAppSelector, useIsStaff } from '../../store/hooks';
+import { useAuthGate } from '../../hooks/useAuthGate';
 import { addToCart } from '../../store/slices/cartSlice';
 import { toggleWishlist } from '../../store/slices/productSlice';
 import { colors, radius, spacing, typography } from '../../theme';
@@ -34,6 +35,7 @@ export function ProductDetailScreen() {
   const { params } = useRoute<Route>();
   const dispatch = useAppDispatch();
   const isStaff = useIsStaff();
+  const { requireAuth } = useAuthGate();
 
   const wishlistIds = useAppSelector((state) => state.product.wishlistIds);
   const mutating = useAppSelector((state) => state.cart.mutating);
@@ -67,16 +69,26 @@ export function ProductDetailScreen() {
     };
   }, [params.productId]);
 
-  const handleAddToCart = async () => {
+  /** A guest is sent to sign-in; the add is replayed for them afterwards. */
+  const handleAddToCart = () => {
     if (!product) return;
-    const result = await dispatch(addToCart({ productId: product.id, quantity }));
-    if (addToCart.fulfilled.match(result)) {
-      setFeedback(`Added ${quantity} to your cart`);
-      setTimeout(() => setFeedback(null), 2500);
-    } else {
-      setFeedback(typeof result.payload === 'string' ? result.payload : 'Could not add to cart');
-      setTimeout(() => setFeedback(null), 3000);
-    }
+    requireAuth({ type: 'addToCart', productId: product.id, quantity }, async () => {
+      const result = await dispatch(addToCart({ productId: product.id, quantity }));
+      if (addToCart.fulfilled.match(result)) {
+        setFeedback(`Added ${quantity} to your cart`);
+        setTimeout(() => setFeedback(null), 2500);
+      } else {
+        setFeedback(typeof result.payload === 'string' ? result.payload : 'Could not add to cart');
+        setTimeout(() => setFeedback(null), 3000);
+      }
+    });
+  };
+
+  const handleToggleWishlist = () => {
+    if (!product) return;
+    requireAuth({ type: 'toggleWishlist', productId: product.id }, () => {
+      void dispatch(toggleWishlist(product.id));
+    });
   };
 
   if (loading) return <LoadingView />;
@@ -144,7 +156,7 @@ export function ProductDetailScreen() {
               </View>
             ) : !isStaff ? (
               <Pressable
-                onPress={() => dispatch(toggleWishlist(product.id))}
+                onPress={handleToggleWishlist}
                 style={styles.glassButton}
                 accessibilityRole="button"
                 accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Save for later'}

@@ -23,6 +23,8 @@ import { useAppSelector } from '../store/hooks';
 import { colors, typography } from '../theme';
 import { AdminTabs } from './AdminTabs';
 import { CustomerTabs } from './CustomerTabs';
+import { PendingIntentRunner } from './PendingIntentRunner';
+import { navigationRef } from './navigationRef';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -52,7 +54,7 @@ export function RootNavigator() {
   const user = useAppSelector((state) => state.auth.user);
 
   if (status === 'booting') {
-    return <LoadingView label="Signing you in…" />;
+    return <LoadingView label="Getting things ready…" />;
   }
 
   const isStaff = user?.accountType === 'admin' || user?.accountType === 'staff';
@@ -60,7 +62,8 @@ export function RootNavigator() {
     user?.accountType === 'wholesale' && user.wholesaleStatus !== 'approved';
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} ref={navigationRef}>
+      <PendingIntentRunner />
       <Stack.Navigator
         screenOptions={{
           // The customer screens draw their own 52px bar (see ui.tsx NavBar), so
@@ -72,12 +75,7 @@ export function RootNavigator() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        {status === 'signedOut' ? (
-          <Stack.Group screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Otp" component={OtpScreen} />
-          </Stack.Group>
-        ) : isBlockedWholesale ? (
+        {isBlockedWholesale ? (
           // PRD 4.1 — login only: browsing and ordering stay unreachable until
           // an admin approves the application.
           <Stack.Screen
@@ -104,6 +102,16 @@ export function RootNavigator() {
         ) : (
           <Stack.Group screenOptions={{ headerShown: false }}>
             <Stack.Screen name="CustomerTabs" component={CustomerTabs} />
+
+            {/* Sign-in lives inside the customer stack as a modal so a guest who
+                backs out lands exactly where they were, still browsing. */}
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen name="Otp" component={OtpScreen} options={{ presentation: 'modal' }} />
+
             <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
             <Stack.Screen
               name="Filters"

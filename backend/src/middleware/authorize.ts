@@ -41,6 +41,29 @@ export function requirePermission(...permissions: Permission[]) {
   };
 }
 
+/**
+ * Public-read guard for guest-first browsing.
+ *
+ * A request with no token passes straight through — the serializer treats an
+ * absent viewer as retail and strips wholesalePrice, so a guest can only ever
+ * see retail figures.
+ *
+ * A request that DOES carry a token is held to the full permission check. That
+ * is what keeps PRD 4.1 intact: a pending or rejected wholesale applicant has
+ * an empty permission set, so they are still refused with the same explanatory
+ * 403 as before. Guest browsing does not become a way around approval.
+ */
+export function allowGuestOrPermission(...permissions: Permission[]) {
+  const guarded = requirePermission(...permissions);
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      next();
+      return;
+    }
+    guarded(req, res, next);
+  };
+}
+
 export function requireRole(...roles: AccountType[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {

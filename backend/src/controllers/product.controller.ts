@@ -45,8 +45,11 @@ export const remove = asyncHandler(async (req: Request, res: Response) => {
 /* ── Categories ─────────────────────────────────────────────────────────── */
 
 export const listCategories = asyncHandler(async (req: Request, res: Response) => {
+  // req.user is absent for a guest, so the staff check has to tolerate it —
+  // a guest never sees inactive categories.
   const includeInactive =
     Boolean((req.query as { includeInactive?: boolean }).includeInactive) &&
+    Boolean(req.user) &&
     isStaffRole(req.user!.accountType);
   res.success(await productService.listCategories(includeInactive));
 });

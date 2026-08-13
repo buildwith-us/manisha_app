@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
 import * as productController from '../controllers/product.controller';
-import { authenticate } from '../middleware/authenticate';
-import { requirePermission } from '../middleware/authorize';
+import { authenticate, optionalAuthenticate } from '../middleware/authenticate';
+import { allowGuestOrPermission, requirePermission } from '../middleware/authorize';
 import { writeLimiter } from '../middleware/rateLimiter';
 import { validate } from '../middleware/validate';
 import { objectIdParam } from '../validators/common';
@@ -33,11 +33,15 @@ const upload = multer({
 
 /* ── Categories (declared before /:id so "categories" is not read as an id) ── */
 
+// Public read: a signed-out guest browses the catalogue (guest-first entry).
+// optionalAuthenticate still attaches req.user when a token is present, so an
+// approved wholesale account keeps its tier; an absent viewer serializes as
+// retail with wholesalePrice stripped (see product.serializer).
 router.get(
   '/categories',
   validate({ query: categoryListQuery }),
-  authenticate,
-  requirePermission(PERMISSIONS.CATALOG_BROWSE),
+  optionalAuthenticate,
+  allowGuestOrPermission(PERMISSIONS.CATALOG_BROWSE),
   productController.listCategories,
 );
 
@@ -82,23 +86,26 @@ router.post(
 /* ── Catalog ────────────────────────────────────────────────────────────── */
 
 /**
- * Browsing requires authentication and the catalog:browse permission — a
- * pending or rejected wholesale applicant has neither, which is how PRD 4.1's
- * "blocked from browsing until approved" rule is enforced.
+ * Browsing is open to signed-out guests (guest-first entry), who are served
+ * retail pricing with wholesalePrice stripped.
+ *
+ * A request that carries a token is still held to catalog:browse, so a pending
+ * or rejected wholesale applicant remains blocked exactly as before — PRD 4.1's
+ * "blocked until approved" rule is unchanged by guest access.
  */
 router.get(
   '/',
   validate({ query: productListQuery }),
-  authenticate,
-  requirePermission(PERMISSIONS.CATALOG_BROWSE),
+  optionalAuthenticate,
+  allowGuestOrPermission(PERMISSIONS.CATALOG_BROWSE),
   productController.list,
 );
 
 router.get(
   '/:id',
   validate({ params: objectIdParam() }),
-  authenticate,
-  requirePermission(PERMISSIONS.CATALOG_BROWSE),
+  optionalAuthenticate,
+  allowGuestOrPermission(PERMISSIONS.CATALOG_BROWSE),
   productController.detail,
 );
 

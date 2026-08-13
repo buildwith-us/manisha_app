@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, ErrorBanner, InfoBanner, NavBar, Screen } from '../../components/ui';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { clearError, resetOtpFlow, sendOtp, verifyOtp } from '../../store/slices/authSlice';
+// ⚠️ TEMPORARY DEV AUTH — REMOVE BEFORE PRODUCTION (see src/config/devAuth.ts)
+import { devOtpHintFor } from '../../config/devAuth';
 import { colors, radius, spacing, typography } from '../../theme';
+import type { RootStackParamList } from '../../navigation/types';
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
@@ -15,7 +19,7 @@ const RESEND_SECONDS = 30;
  * what the note under the boxes promises.
  */
 export function OtpScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Otp'>>();
   const dispatch = useAppDispatch();
   const { pendingPhone, pendingAccountType, pendingApplication, devCode, loading, error } =
     useAppSelector((state) => state.auth);
@@ -36,9 +40,17 @@ export function OtpScreen() {
     if (devCode) setCode(devCode);
   }, [devCode]);
 
+  // ⚠️ TEMPORARY DEV AUTH — REMOVE BEFORE PRODUCTION
+  // The dev codes are 4 digits while a real OTP is 6, so submission accepts
+  // either: a full-length real code, or an exact match on the dev code. Real
+  // 6-digit entry is unaffected, and devHint is null whenever the flag is off.
+  const devHint = pendingPhone ? devOtpHintFor(pendingPhone) : null;
+  const isSubmittable = (value: string) =>
+    value.length === OTP_LENGTH || (devHint !== null && value === devHint);
+
   const submit = async (value: string) => {
-    if (!pendingPhone || value.length !== OTP_LENGTH) return;
-    await dispatch(
+    if (!pendingPhone || !isSubmittable(value)) return;
+    const result = await dispatch(
       verifyOtp({
         phone: pendingPhone,
         code: value,
@@ -46,14 +58,22 @@ export function OtpScreen() {
         application: pendingApplication ?? undefined,
       }),
     );
-    // A successful verify flips auth.status, and RootNavigator swaps the stack.
+
+    // Staff and blocked-wholesale accounts swap the whole stack, which unmounts
+    // this modal on its own. A retail or approved-wholesale customer stays in
+    // the customer stack, so the Otp + Login modals have to be popped to put
+    // them back on the screen they came from — with their action replayed by
+    // PendingIntentRunner.
+    if (verifyOtp.fulfilled.match(result) && navigation.canGoBack()) {
+      navigation.pop(2);
+    }
   };
 
   const handleChange = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, OTP_LENGTH);
     setCode(digits);
     if (error) dispatch(clearError());
-    if (digits.length === OTP_LENGTH) void submit(digits);
+    if (isSubmittable(digits)) void submit(digits);
   };
 
   const handleResend = async () => {
@@ -138,7 +158,7 @@ export function OtpScreen() {
           label="Verify & continue"
           onPress={() => submit(code)}
           loading={loading}
-          disabled={code.length !== OTP_LENGTH}
+          disabled={!isSubmittable(code)}
         />
       </View>
     </Screen>

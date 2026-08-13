@@ -16,6 +16,7 @@ import { Chip, EmptyState, ErrorBanner, LoadingView, Screen } from '../../compon
 import { Icon } from '../../components/Icon';
 import { ProductCard } from '../../components/ProductCard';
 import { useAppDispatch, useAppSelector, useIsStaff } from '../../store/hooks';
+import { useAuthGate } from '../../hooks/useAuthGate';
 import {
   fetchCategories,
   fetchProducts,
@@ -43,6 +44,7 @@ export function CatalogScreen() {
   const navigation = useNavigation<Nav>();
   const dispatch = useAppDispatch();
   const isStaff = useIsStaff();
+  const { isSignedIn, requireAuth } = useAuthGate();
 
   const {
     items,
@@ -62,12 +64,15 @@ export function CatalogScreen() {
   const [searchText, setSearchText] = useState(filters.search ?? '');
 
   useEffect(() => {
+    // Catalogue and categories are public; the rest need an account, and
+    // firing them as a guest would 401 and tear down the session.
     void dispatch(fetchCategories());
     void dispatch(fetchProducts({ page: 1 }));
+    if (!isSignedIn) return;
     void dispatch(fetchCart());
     void dispatch(fetchWishlist());
     void dispatch(fetchNotifications());
-  }, [dispatch]);
+  }, [dispatch, isSignedIn]);
 
   // Debounce the search box so typing does not fire a request per keystroke.
   useEffect(() => {
@@ -104,9 +109,12 @@ export function CatalogScreen() {
 
   const handleWishlist = useCallback(
     (product: Product) => {
-      void dispatch(toggleWishlist(product.id));
+      // Guests get sign-in, then the save is applied for them.
+      requireAuth({ type: 'toggleWishlist', productId: product.id }, () => {
+        void dispatch(toggleWishlist(product.id));
+      });
     },
-    [dispatch],
+    [dispatch, requireAuth],
   );
 
   const activeFilterCount =
@@ -129,7 +137,11 @@ export function CatalogScreen() {
         <View style={styles.headerTop}>
           <Text style={styles.greeting}>{user?.name ? `Hello, ${user.name}` : 'Welcome'}</Text>
           <Pressable
-            onPress={() => navigation.navigate('Notifications')}
+            onPress={() =>
+              requireAuth({ type: 'openNotifications' }, () =>
+                navigation.navigate('Notifications'),
+              )
+            }
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Notifications"

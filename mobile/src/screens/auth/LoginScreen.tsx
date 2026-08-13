@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, ErrorBanner, Input, Screen, Segmented } from '../../components/ui';
@@ -10,6 +18,8 @@ import {
   setPendingAccountType,
   setPendingApplication,
 } from '../../store/slices/authSlice';
+// ⚠️ TEMPORARY DEV AUTH — REMOVE BEFORE PRODUCTION (see src/config/devAuth.ts)
+import { isDevAuthPhone } from '../../config/devAuth';
 import { colors, spacing, typography } from '../../theme';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -34,7 +44,10 @@ export function LoginScreen() {
   const [touched, setTouched] = useState(false);
 
   const digits = phone.replace(/\D/g, '');
-  const phoneValid = digits.length === 10 && /^[6-9]/.test(digits);
+  // ⚠️ TEMPORARY DEV AUTH — REMOVE BEFORE PRODUCTION
+  // isDevAuthPhone is false unless the bypass flag is on, so production
+  // validation is exactly `length === 10 && /^[6-9]/`.
+  const phoneValid = digits.length === 10 && (/^[6-9]/.test(digits) || isDevAuthPhone(digits));
 
   const handleContinue = async () => {
     setTouched(true);
@@ -64,6 +77,19 @@ export function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
+        {/* Sign-in opens over whatever a guest was browsing, so backing out has
+            to be possible — it returns them there, still a guest. */}
+        {navigation.canGoBack() ? (
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={10}
+            accessibilityRole="button"
+            style={styles.cancel}
+          >
+            <Text style={styles.cancelLabel}>Cancel</Text>
+          </Pressable>
+        ) : null}
+
         <Image source={require('../../../assets/logo.jpeg')} style={styles.logo} />
 
         <Text style={styles.heading}>Sign in</Text>
@@ -140,7 +166,9 @@ export function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, paddingHorizontal: spacing.xxl, paddingTop: spacing.xxxl },
+  content: { flexGrow: 1, paddingHorizontal: spacing.xxl, paddingTop: spacing.xl },
+  cancel: { alignSelf: 'flex-start', paddingVertical: spacing.sm, marginBottom: spacing.md },
+  cancelLabel: { ...typography.bodyStrong, color: colors.primary },
   logo: { width: 132, height: 104, resizeMode: 'contain' },
   heading: { ...typography.hero, color: colors.text, lineHeight: 38, marginTop: spacing.xxl },
   subheading: { ...typography.row, color: colors.textMuted, lineHeight: 26, marginTop: spacing.md },

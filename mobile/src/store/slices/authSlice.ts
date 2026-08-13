@@ -9,6 +9,8 @@ import {
   loadTokens,
   saveTokens,
 } from '../../api/tokenStorage';
+// ⚠️ TEMPORARY DEV AUTH — REMOVE BEFORE PRODUCTION (see src/config/devAuth.ts)
+import { devOtpHintFor, resolveDevSession } from '../../config/devAuth';
 import type { Address, User } from '../../api/types';
 
 /**
@@ -16,11 +18,30 @@ import type { Address, User } from '../../api/types';
  * approval status. Also owns the app-start token lifecycle from PRD 8.10.
  */
 
-export type AuthStatus = 'booting' | 'signedOut' | 'signedIn';
+/**
+ * `guest` is a browsing state, not a locked-out one: the catalogue renders for
+ * guests and only account-bound actions bounce to sign-in.
+ */
+export type AuthStatus = 'booting' | 'guest' | 'signedIn';
+
+/**
+ * What a guest was trying to do when sign-in interrupted them. Kept
+ * serialisable so it can live in the store, and replayed verbatim once the
+ * session exists — a guest who tapped "Add to cart" gets that item added, not
+ * a trip back to Home.
+ */
+export type AuthIntent =
+  | { type: 'addToCart'; productId: string; quantity: number }
+  | { type: 'toggleWishlist'; productId: string }
+  | { type: 'openTab'; tab: 'Cart' | 'Wishlist' | 'Orders' | 'Account' }
+  | { type: 'openNotifications' }
+  | { type: 'checkout' };
 
 interface AuthState {
   status: AuthStatus;
   user: User | null;
+  /** Set when a gated action bounced to sign-in; replayed on success. */
+  pendingIntent: AuthIntent | null;
   /** Phone awaiting OTP entry, kept so the OTP screen can resend. */
   pendingPhone: string | null;
   pendingAccountType: 'retail' | 'wholesale';
@@ -36,6 +57,7 @@ interface AuthState {
 const initialState: AuthState = {
   status: 'booting',
   user: null,
+  pendingIntent: null,
   pendingPhone: null,
   pendingAccountType: 'retail',
   pendingApplication: null,
@@ -53,9 +75,12 @@ function messageFor(error: unknown): string {
 
 /**
  * PRD 8.10 — app start:
- *   no access token         → login screen
- *   token present, expired  → refresh; success → dashboard, failure → login
- *   token present, valid    → straight to the dashboard, no OTP prompt
+ *   no access token         → Home as a guest (no login wall)
+ *   token present, expired  → refresh silently; on failure, fall back to guest
+ *   token present, valid    → Home, already signed in, no OTP prompt
+ *
+ * A failed refresh no longer routes anywhere: it drops to guest, and the user
+ * is only asked to sign in if they take an action that needs an account.
  */
 export const bootstrapSession = createAsyncThunk<User | null>(
   'auth/bootstrap',
@@ -92,6 +117,14 @@ export const sendOtp = createAsyncThunk<
     const result = await authApi.sendOtp(phone);
     return { phone, devCode: result.devCode, expiresInSeconds: result.expiresInSeconds };
   } catch (error) {
+    // ⚠️ TEMPORARY DEV AUTH — REMOVE BEFORE PRODUCTION
+    // The real request is always attempted first. Only when it fails AND the
+    // bypass is on do we let the flow continue offline, so the OTP screen is
+    // reachable with no SMS provider and no backend. Delete this block with the
+    // rest of the bypass.
+    const hint = devOtpHintFor(phone);
+    if (hint) return { phone, devCode: hint, expiresInSeconds: 300 };
+
     return rejectWithValue(messageFor(error));
   }
 });
@@ -106,6 +139,16 @@ export const verifyOtp = createAsyncThunk<
   },
   { rejectValue: string }
 >('auth/verifyOtp', async (input, { rejectWithValue }) => {
+  // ⚠️ TEMPORARY DEV AUTH — REMOVE BEFORE PRODUCTION
+  // Additive only: returns null unless DEV_AUTH_BYPASS is on AND the pair
+  // matches a dev rule, in which case we never reach the real API. Delete this
+  // block and the devAuth import to remove the feature entirely.
+  const devSession = resolveDevSession(input.phone, input.code);
+  if (devSession) {
+    await saveTokens(devSession.accessToken, devSession.refreshToken);
+    return devSession.user;
+  }
+
   try {
     const result = await authApi.verifyOtp({
       ...input,
@@ -175,11 +218,22 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    /** Called by the Axios interceptor when the refresh token is dead. */
+    /**
+     * Called by the Axios interceptor when the refresh token is dead. Drops to
+     * guest rather than to a login wall — the catalogue keeps working, and the
+     * next gated action is what prompts a sign-in.
+     */
     sessionExpired(state) {
-      state.status = 'signedOut';
+      state.status = 'guest';
       state.user = null;
       state.error = 'Your session expired. Please sign in again.';
+    },
+    /** Records what a guest was attempting before being sent to sign-in. */
+    setPendingIntent(state, action: PayloadAction<AuthIntent | null>) {
+      state.pendingIntent = action.payload;
+    },
+    clearPendingIntent(state) {
+      state.pendingIntent = null;
     },
     clearError(state) {
       state.error = null;
@@ -207,10 +261,10 @@ const authSlice = createSlice({
       })
       .addCase(bootstrapSession.fulfilled, (state, action) => {
         state.user = action.payload;
-        state.status = action.payload ? 'signedIn' : 'signedOut';
+        state.status = action.payload ? 'signedIn' : 'guest';
       })
       .addCase(bootstrapSession.rejected, (state) => {
-        state.status = 'signedOut';
+        state.status = 'guest';
         state.user = null;
       })
 
@@ -251,7 +305,8 @@ const authSlice = createSlice({
       })
 
       .addCase(signOut.fulfilled, (state) => {
-        state.status = 'signedOut';
+        state.status = 'guest';
+        state.pendingIntent = null;
         state.user = null;
         state.pendingPhone = null;
         state.error = null;
@@ -285,6 +340,8 @@ const authSlice = createSlice({
 
 export const {
   sessionExpired,
+  setPendingIntent,
+  clearPendingIntent,
   clearError,
   resetOtpFlow,
   setPendingAccountType,
