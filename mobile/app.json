@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Manisha Fashions",
+    "slug": "manisha-fashions",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "manishafashions",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "in.manishafashions.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allows admin and staff to upload product photos to the catalogue.",
+        "NSCameraUsageDescription": "Allows admin and staff to photograph products for the catalogue."
+      }
+    },
+    "android": {
+      "package": "in.manishafashions.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FCEEF1",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-image",
+      [
+        "expo-notifications",
+        {
+          "color": "#A6193C"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allows admin and staff to upload product photos to the catalogue."
+        }
+      ],
+      "./plugins/withDevCleartext"
+    ],
+    "extra": {
+      "//": "Point this at your deployed API before building. Leave unset in local dev to use the per-platform localhost default (10.0.2.2 on the Android emulator).",
+      "apiUrl": null
+    }
+  }
+}

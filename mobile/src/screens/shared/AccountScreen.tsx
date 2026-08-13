@@ -1,0 +1,280 @@
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  CountBadge,
+  Group,
+  Row,
+  Screen,
+  SectionLabel,
+  Toggle,
+} from '../../components/ui';
+import {
+  PERMISSIONS,
+  useAppDispatch,
+  useAppSelector,
+  useIsStaff,
+  usePermission,
+} from '../../store/hooks';
+import { applyForWholesale, refreshProfile, signOut } from '../../store/slices/authSlice';
+import { setPermission, setPushToken } from '../../store/slices/notificationSlice';
+import { registerForPush } from '../../utils/push';
+import { colors, radius, shadow, shadowAccent, spacing, typography } from '../../theme';
+import type { RootStackParamList } from '../../navigation/types';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+/**
+ * Screen 19 — settings-style grouped rows. The identity block carries the only
+ * saturated element on the screen (the avatar), and every destination below it
+ * is one plain row with a chevron.
+ */
+export function AccountScreen() {
+  const navigation = useNavigation<Nav>();
+  const dispatch = useAppDispatch();
+
+  const user = useAppSelector((state) => state.auth.user);
+  const unread = useAppSelector((state) => state.notification.unread);
+  const pushPermission = useAppSelector((state) => state.notification.permission);
+  const orderCount = useAppSelector((state) => state.cart.orders.length);
+  const savedCount = useAppSelector((state) => state.product.wishlistIds.length);
+  const isStaff = useIsStaff();
+  const canBroadcast = usePermission(PERMISSIONS.NOTIFICATION_BROADCAST);
+  const canManageUsers = usePermission(PERMISSIONS.USER_MANAGE);
+  const canManageCategories = usePermission(PERMISSIONS.CATEGORY_MANAGE);
+
+  const [applying, setApplying] = useState(false);
+
+  useEffect(() => {
+    void dispatch(refreshProfile());
+  }, [dispatch]);
+
+  const handlePushToggle = async (enabled: boolean) => {
+    if (!enabled) {
+      dispatch(setPermission('denied'));
+      return;
+    }
+    const token = await registerForPush();
+    dispatch(setPushToken(token));
+    dispatch(setPermission(token ? 'granted' : 'denied'));
+
+    if (!token) {
+      Alert.alert(
+        'Notifications unavailable',
+        'Enable notifications for Manisha Fashions in your device settings. Note that push requires a development build, not Expo Go.',
+      );
+    }
+  };
+
+  const handleApplyWholesale = () => {
+    Alert.alert(
+      'Apply for wholesale pricing?',
+      'An admin will review your application. Wholesale pricing unlocks once approved.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Apply',
+          onPress: async () => {
+            setApplying(true);
+            await dispatch(applyForWholesale({}));
+            setApplying(false);
+          },
+        },
+      ],
+    );
+  };
+
+  const handleSignOut = () => {
+    Alert.alert('Log out?', 'You will need to verify your number again next time.', [
+      { text: 'Stay signed in', style: 'cancel' },
+      { text: 'Log out', style: 'destructive', onPress: () => void dispatch(signOut()) },
+    ]);
+  };
+
+  if (!user) return <Screen />;
+
+  const tier =
+    user.accountType === 'admin'
+      ? 'Admin'
+      : user.accountType === 'staff'
+        ? 'Staff'
+        : user.accountType === 'wholesale'
+          ? 'Wholesale'
+          : 'Retail';
+
+  return (
+    <Screen>
+      <View style={styles.identity}>
+        <View style={[styles.avatar, shadowAccent]}>
+          <Text style={styles.avatarText}>
+            {(user.name ?? user.phone).slice(0, 2).toUpperCase()}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.name}>{user.name ?? 'Add your name'}</Text>
+          <Text style={styles.phone}>
+            {user.phone} · {tier}
+          </Text>
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {!isStaff ? (
+          <View style={[styles.stats, shadow]}>
+            <Stat value={orderCount} label="Orders" />
+            <Stat value={savedCount} label="Saved" />
+            <Stat value={user.addresses.length} label="Addresses" />
+          </View>
+        ) : null}
+
+        <View style={styles.block}>
+          <Group>
+            <Row
+              icon="user"
+              label="Profile details"
+              chevron
+              onPress={() => navigation.navigate('Profile')}
+            />
+            {!isStaff ? (
+              <Row
+                icon="mapPin"
+                label="Delivery addresses"
+                chevron
+                onPress={() => navigation.navigate('Addresses')}
+              />
+            ) : null}
+            <Row
+              icon="bell"
+              label="Notifications"
+              onPress={() => navigation.navigate('Notifications')}
+              right={unread > 0 ? <CountBadge count={unread} /> : undefined}
+              chevron={unread === 0}
+            />
+            {!isStaff ? (
+              <Row
+                icon="package"
+                label="Order history"
+                chevron
+                onPress={() => navigation.navigate('CustomerTabs', { screen: 'Orders' })}
+              />
+            ) : null}
+          </Group>
+        </View>
+
+        {isStaff ? (
+          <View style={styles.block}>
+            <SectionLabel>Store management</SectionLabel>
+            <Group>
+              {canManageCategories ? (
+                <Row
+                  icon="tag"
+                  label="Categories"
+                  chevron
+                  onPress={() => navigation.navigate('AdminCategories')}
+                />
+              ) : null}
+              {canBroadcast ? (
+                <Row
+                  icon="send"
+                  label="Send a notification"
+                  chevron
+                  onPress={() => navigation.navigate('AdminNotify')}
+                />
+              ) : null}
+              {canManageUsers ? (
+                <Row
+                  icon="users"
+                  label="Customer & staff accounts"
+                  chevron
+                  onPress={() => navigation.navigate('AdminUsers')}
+                />
+              ) : null}
+            </Group>
+          </View>
+        ) : null}
+
+        {/* PRD 4.1 — a retail customer can apply for wholesale from inside the app. */}
+        {user.accountType === 'retail' ? (
+          <View style={styles.block}>
+            <Group>
+              <Row
+                label={applying ? 'Sending your application…' : 'Apply for wholesale'}
+                detail="Trade pricing, once the shop approves you"
+                chevron
+                onPress={applying ? undefined : handleApplyWholesale}
+              />
+            </Group>
+          </View>
+        ) : null}
+
+        <View style={styles.block}>
+          <Group>
+            <Row
+              label="Push notifications"
+              detail="Order updates and offers"
+              right={
+                <Toggle value={pushPermission === 'granted'} onValueChange={handlePushToggle} />
+              }
+            />
+          </Group>
+        </View>
+
+        <Pressable onPress={handleSignOut} style={styles.logOut} accessibilityRole="button">
+          <Text style={styles.logOutLabel}>Log out</Text>
+        </Pressable>
+      </ScrollView>
+    </Screen>
+  );
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl - 4,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontSize: 22, fontWeight: '500', color: colors.textInverse },
+  name: { ...typography.title, color: colors.text },
+  phone: { ...typography.callout, color: colors.textFaint, marginTop: 2 },
+
+  scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl },
+  block: { marginTop: spacing.xl },
+
+  stats: {
+    flexDirection: 'row',
+    padding: spacing.xl,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+  },
+  statValue: { ...typography.title, fontSize: 24, color: colors.text },
+  statLabel: { ...typography.footnote, color: colors.textFaint, marginTop: 3 },
+
+  logOut: {
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xl,
+  },
+  logOutLabel: { ...typography.bodyStrong, color: colors.primary },
+});

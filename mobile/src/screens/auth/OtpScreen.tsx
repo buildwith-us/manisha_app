@@ -1,0 +1,188 @@
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Button, ErrorBanner, InfoBanner, NavBar, Screen } from '../../components/ui';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { clearError, resetOtpFlow, sendOtp, verifyOtp } from '../../store/slices/authSlice';
+import { colors, radius, spacing, typography } from '../../theme';
+
+const OTP_LENGTH = 6;
+const RESEND_SECONDS = 30;
+
+/**
+ * PRD 4.1 / 8.7 — OTP entry. On success the session token is stored and the
+ * user is not asked again until logout, reinstall, or idle expiry — which is
+ * what the note under the boxes promises.
+ */
+export function OtpScreen() {
+  const navigation = useNavigation();
+  const dispatch = useAppDispatch();
+  const { pendingPhone, pendingAccountType, pendingApplication, devCode, loading, error } =
+    useAppSelector((state) => state.auth);
+
+  const [code, setCode] = useState('');
+  const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
+  const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsLeft((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    // Dev convenience: the API echoes the code back outside production.
+    if (devCode) setCode(devCode);
+  }, [devCode]);
+
+  const submit = async (value: string) => {
+    if (!pendingPhone || value.length !== OTP_LENGTH) return;
+    await dispatch(
+      verifyOtp({
+        phone: pendingPhone,
+        code: value,
+        accountType: pendingAccountType,
+        application: pendingApplication ?? undefined,
+      }),
+    );
+    // A successful verify flips auth.status, and RootNavigator swaps the stack.
+  };
+
+  const handleChange = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, OTP_LENGTH);
+    setCode(digits);
+    if (error) dispatch(clearError());
+    if (digits.length === OTP_LENGTH) void submit(digits);
+  };
+
+  const handleResend = async () => {
+    if (!pendingPhone || secondsLeft > 0) return;
+    setCode('');
+    setSecondsLeft(RESEND_SECONDS);
+    await dispatch(sendOtp({ phone: pendingPhone, accountType: pendingAccountType }));
+  };
+
+  const handleBack = () => {
+    dispatch(resetOtpFlow());
+    navigation.goBack();
+  };
+
+  return (
+    <Screen tone="plain" edges={['top', 'bottom']}>
+      <NavBar onBack={handleBack} />
+
+      <View style={styles.body}>
+        <Text style={styles.heading}>Enter the code</Text>
+        <Text style={styles.subheading}>
+          Sent to <Text style={styles.subheadingStrong}>{pendingPhone ?? 'your number'}</Text>.{' '}
+          <Text style={styles.link} onPress={handleBack}>
+            Change
+          </Text>
+        </Text>
+
+        {error ? <ErrorBanner message={error} /> : null}
+
+        {devCode ? (
+          <InfoBanner message={`Development mode — code auto-filled: ${devCode}`} tone="warning" />
+        ) : null}
+
+        <Pressable onPress={() => inputRef.current?.focus()} style={styles.boxes}>
+          {Array.from({ length: OTP_LENGTH }).map((_, index) => {
+            const active = index === code.length;
+            return (
+              <View key={index} style={[styles.box, active && styles.boxActive]}>
+                {active && !code[index] ? (
+                  <View style={styles.caret} />
+                ) : (
+                  <Text style={styles.boxText}>{code[index] ?? ''}</Text>
+                )}
+              </View>
+            );
+          })}
+        </Pressable>
+
+        {/* A single hidden input backs the six boxes so SMS autofill works. */}
+        <TextInput
+          ref={inputRef}
+          value={code}
+          onChangeText={handleChange}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="sms-otp"
+          maxLength={OTP_LENGTH}
+          autoFocus
+          style={styles.hiddenInput}
+        />
+
+        <View style={styles.resendRow}>
+          <Text style={styles.resendLabel}>Didn't get it?</Text>
+          <Pressable onPress={handleResend} disabled={secondsLeft > 0} hitSlop={8}>
+            <Text style={[styles.resendAction, secondsLeft > 0 && styles.resendWaiting]}>
+              {secondsLeft > 0
+                ? `Resend in 0:${String(secondsLeft).padStart(2, '0')}`
+                : 'Resend code'}
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.note}>
+          <Text style={styles.noteText}>
+            You'll only do this once. The app stays signed in until you log out or change device.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.footer}>
+        <Button
+          label="Verify & continue"
+          onPress={() => submit(code)}
+          loading={loading}
+          disabled={code.length !== OTP_LENGTH}
+        />
+      </View>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  body: { flex: 1, paddingHorizontal: spacing.xxl, paddingTop: spacing.xl },
+  heading: { ...typography.hero, color: colors.text, lineHeight: 38 },
+  subheading: { ...typography.row, color: colors.textMuted, lineHeight: 26, marginTop: spacing.md },
+  subheadingStrong: { color: colors.text, fontWeight: '500' },
+  link: { color: colors.primary },
+
+  boxes: { flexDirection: 'row', gap: spacing.sm + 2, marginTop: spacing.xxxl },
+  box: {
+    flex: 1,
+    height: 60,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  boxActive: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.primary },
+  boxText: { fontSize: 26, fontWeight: '500', color: colors.text },
+  caret: { width: 2, height: 26, borderRadius: 2, backgroundColor: colors.primary },
+  hiddenInput: { position: 'absolute', opacity: 0, height: 1, width: 1 },
+
+  resendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginTop: spacing.xl,
+  },
+  resendLabel: { ...typography.callout, color: colors.textMuted },
+  resendAction: { ...typography.calloutStrong, color: colors.primary },
+  resendWaiting: { color: colors.textDisabled },
+
+  note: {
+    marginTop: spacing.xxl,
+    padding: spacing.xl,
+    borderRadius: radius.lg,
+    backgroundColor: colors.background,
+  },
+  noteText: { ...typography.callout, color: colors.textMuted, lineHeight: 23 },
+
+  footer: { paddingHorizontal: spacing.xxl, paddingBottom: spacing.xxxl },
+});
