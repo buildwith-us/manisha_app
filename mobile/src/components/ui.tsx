@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Children, Fragment, isValidElement } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,6 +29,14 @@ export function Screen({
   edges = ['top'],
   /** `grouped` is the #F5F5F7 ground; `plain` is a white sheet. */
   tone = 'grouped',
+  /**
+   * Lifts the content clear of the on-screen keyboard. Needed on any screen
+   * with a text field far enough down that the keyboard would cover it.
+   *
+   * This has to wrap the ScrollView rather than sit inside it — a
+   * KeyboardAvoidingView nested within a ScrollView does nothing.
+   */
+  keyboardAvoiding = false,
   style,
   contentStyle,
 }: {
@@ -35,6 +45,7 @@ export function Screen({
   scroll?: boolean;
   edges?: Edge[];
   tone?: 'grouped' | 'plain';
+  keyboardAvoiding?: boolean;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
 }) {
@@ -54,7 +65,18 @@ export function Screen({
 
   return (
     <SafeAreaView edges={edges} style={[styles.screen, { backgroundColor: ground }, style]}>
-      {body}
+      {keyboardAvoiding ? (
+        // 'padding' is the correct iOS behaviour; Android needs 'height' because
+        // `undefined` there makes the component a no-op.
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          {body}
+        </KeyboardAvoidingView>
+      ) : (
+        body
+      )}
     </SafeAreaView>
   );
 }

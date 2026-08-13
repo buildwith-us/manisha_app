@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import {
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, ErrorBanner, Input, Screen, Segmented } from '../../components/ui';
@@ -72,95 +64,96 @@ export function LoginScreen() {
   };
 
   return (
-    <Screen scroll tone="plain" edges={['top', 'bottom']} contentStyle={styles.content}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        {/* Sign-in opens over whatever a guest was browsing, so backing out has
-            to be possible — it returns them there, still a guest. */}
-        {navigation.canGoBack() ? (
-          <Pressable
-            onPress={() => navigation.goBack()}
-            hitSlop={10}
-            accessibilityRole="button"
-            style={styles.cancel}
-          >
-            <Text style={styles.cancelLabel}>Cancel</Text>
-          </Pressable>
-        ) : null}
+    <Screen
+      scroll
+      keyboardAvoiding
+      tone="plain"
+      edges={['top', 'bottom']}
+      contentStyle={styles.content}
+    >
+      {/* Sign-in opens over whatever a guest was browsing, so backing out has
+          to be possible — it returns them there, still a guest. */}
+      {navigation.canGoBack() ? (
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={10}
+          accessibilityRole="button"
+          style={styles.cancel}
+        >
+          <Text style={styles.cancelLabel}>Cancel</Text>
+        </Pressable>
+      ) : null}
 
-        <Image source={require('../../../assets/logo.jpeg')} style={styles.logo} />
+      <Image source={require('../../../assets/logo.jpeg')} style={styles.logo} />
 
-        <Text style={styles.heading}>Sign in</Text>
-        <Text style={styles.subheading}>
-          No password. We send a one-time code by SMS and keep you signed in.
-        </Text>
+      <Text style={styles.heading}>Sign in</Text>
+      <Text style={styles.subheading}>
+        No password. We send a one-time code by SMS and keep you signed in.
+      </Text>
 
-        {error ? <ErrorBanner message={error} /> : null}
+      {error ? <ErrorBanner message={error} /> : null}
 
-        <View style={styles.segmentBlock}>
-          <Segmented
-            options={[
-              { value: 'retail' as const, label: 'Retail' },
-              { value: 'wholesale' as const, label: 'Wholesale' },
-            ]}
-            value={accountType}
-            onChange={(next) => {
-              dispatch(setPendingAccountType(next));
-              dispatch(clearError());
-            }}
-            tone="plain"
-          />
-          <Text style={styles.segmentHint}>
-            {accountType === 'retail'
-              ? 'Shop at our standard retail prices.'
-              : 'Approved by the shop before wholesale pricing unlocks.'}
-          </Text>
-        </View>
-
-        <Input
-          label="Mobile number"
-          prefix="+91"
-          value={phone}
-          onChangeText={(value) => setPhone(value.replace(/\D/g, '').slice(0, 10))}
-          placeholder="98765 43210"
-          keyboardType="phone-pad"
-          autoComplete="tel"
-          textContentType="telephoneNumber"
-          maxLength={10}
-          error={touched && !phoneValid ? 'Enter a valid 10-digit mobile number' : null}
-          hint="The 10-digit number registered with the shop."
+      <View style={styles.segmentBlock}>
+        <Segmented
+          options={[
+            { value: 'retail' as const, label: 'Retail' },
+            { value: 'wholesale' as const, label: 'Wholesale' },
+          ]}
+          value={accountType}
+          onChange={(next) => {
+            dispatch(setPendingAccountType(next));
+            dispatch(clearError());
+          }}
+          tone="plain"
         />
-
-        {accountType === 'wholesale' ? (
-          <>
-            <Input
-              label="Business name"
-              value={businessName}
-              onChangeText={setBusinessName}
-              placeholder="Your shop or firm name"
-              autoCapitalize="words"
-            />
-            <Input
-              label="GST number"
-              value={gstNumber}
-              onChangeText={(value) => setGstNumber(value.toUpperCase().slice(0, 15))}
-              placeholder="24AAAAA0000A1Z5"
-              autoCapitalize="characters"
-              maxLength={15}
-              hint="Optional — speeds up approval. You can add this later."
-            />
-          </>
-        ) : null}
-
-        <View style={{ flex: 1, minHeight: spacing.xxl }} />
-
-        <Button label="Send verification code" onPress={handleContinue} loading={loading} />
-        <Text style={styles.legal}>
-          By continuing you agree to our terms of service and privacy policy.
+        <Text style={styles.segmentHint}>
+          {accountType === 'retail'
+            ? 'Shop at our standard retail prices.'
+            : 'Approved by the shop before wholesale pricing unlocks.'}
         </Text>
-      </KeyboardAvoidingView>
+      </View>
+
+      <Input
+        label="Mobile number"
+        prefix="+91"
+        value={phone}
+        onChangeText={(value) => setPhone(value.replace(/\D/g, '').slice(0, 10))}
+        placeholder="98765 43210"
+        keyboardType="phone-pad"
+        autoComplete="tel"
+        textContentType="telephoneNumber"
+        maxLength={10}
+        error={touched && !phoneValid ? 'Enter a valid 10-digit mobile number' : null}
+        hint="The 10-digit number registered with the shop."
+      />
+
+      {accountType === 'wholesale' ? (
+        <>
+          <Input
+            label="Business name"
+            value={businessName}
+            onChangeText={setBusinessName}
+            placeholder="Your shop or firm name"
+            autoCapitalize="words"
+          />
+          <Input
+            label="GST number"
+            value={gstNumber}
+            onChangeText={(value) => setGstNumber(value.toUpperCase().slice(0, 15))}
+            placeholder="24AAAAA0000A1Z5"
+            autoCapitalize="characters"
+            maxLength={15}
+            hint="Optional — speeds up approval. You can add this later."
+          />
+        </>
+      ) : null}
+
+      <View style={{ flex: 1, minHeight: spacing.xxl }} />
+
+      <Button label="Send verification code" onPress={handleContinue} loading={loading} />
+      <Text style={styles.legal}>
+        By continuing you agree to our terms of service and privacy policy.
+      </Text>
     </Screen>
   );
 }
