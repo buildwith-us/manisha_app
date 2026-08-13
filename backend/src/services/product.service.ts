@@ -59,7 +59,8 @@ export interface ProductInput {
   category: string;
   images?: string[];
   retailPrice: number;
-  wholesalePrice: number;
+  /** Omitted for a retail-only product; null clears an existing rate. */
+  wholesalePrice?: number | null;
   stock: number;
   sku?: string;
   tags?: string[];
@@ -75,17 +76,24 @@ export async function createProduct(
   input: ProductInput,
   actor: AuthenticatedUser,
 ): Promise<SerializedProduct> {
-  // PRD 8.9 — staff have product management but no pricing rights. Creation
-  // requires both prices (PRD 4.7: both required, no auto-derived default),
-  // so creating a product is inherently an admin action.
+  // PRD 8.9 — staff have product management but no pricing rights. Creating a
+  // product always sets a retail price, so it stays an admin-only action even
+  // though the wholesale rate is now optional.
   if (!actor.permissions.includes(PERMISSIONS.PRODUCT_PRICE_MANAGE)) {
     throw ApiError.forbidden(
-      'Creating a product requires setting retail and wholesale prices, which is an admin-only action.',
+      'Creating a product requires setting its price, which is an admin-only action.',
     );
   }
 
   await assertCategoryExists(input.category);
-  const product = await productRepository.create(input);
+
+  const { wholesalePrice, ...rest } = input;
+  const product = await productRepository.create({
+    ...rest,
+    // Never persist an explicit null — the field should simply be absent so
+    // "has no wholesale rate" is one state, not two.
+    ...(wholesalePrice === undefined || wholesalePrice === null ? {} : { wholesalePrice }),
+  });
   return serializeProduct(product, actor);
 }
 
@@ -101,7 +109,33 @@ export async function updateProduct(
 
   if (input.category) await assertCategoryExists(input.category);
 
-  const product = await productRepository.updateById(id, input);
+  // "wholesale must not exceed retail" cannot be settled by the request schema
+  // alone: a PATCH that carries only wholesalePrice has nothing to compare
+  // against, and the stored retail price is the other half of the rule. Check
+  // it here, where the saved product is in reach, so the guard holds however
+  // the client chooses to split the update.
+  if (input.wholesalePrice !== undefined && input.wholesalePrice !== null) {
+    const existing = await productRepository.findById(id);
+    if (!existing) throw ApiError.notFound('Product not found');
+
+    const retail = input.retailPrice ?? existing.retailPrice;
+    if (input.wholesalePrice > retail) {
+      throw ApiError.unprocessable('Wholesale price should not be higher than retail price');
+    }
+  }
+
+  // A null wholesalePrice means "turn the wholesale rate off", which has to
+  // unset the field rather than $set it to null — otherwise the product still
+  // looks like it carries a rate, of zero.
+  const { wholesalePrice, ...rest } = input;
+  const product =
+    wholesalePrice === null
+      ? await productRepository.updateById(id, rest, { unsetWholesalePrice: true })
+      : await productRepository.updateById(id, {
+          ...rest,
+          ...(wholesalePrice === undefined ? {} : { wholesalePrice }),
+        });
+
   if (!product) throw ApiError.notFound('Product not found');
   return serializeProduct(product, actor);
 }

@@ -26,11 +26,15 @@ import type { Category } from '../../api/types';
 type Route = RouteProp<RootStackParamList, 'AdminProductForm'>;
 
 /**
- * PRD 4.7 — add / edit a product: both prices (required, no auto-derived
- * default), stock, category and images.
+ * PRD 4.7 — add / edit a product: price, stock, category and images.
  *
- * PRD 8.9 — a staff account can edit everything except the two price fields,
- * which are disabled here and refused by the server regardless.
+ * A product is added at the retail price alone by default. Turning on the
+ * wholesale toggle reveals the wholesale price field and makes it required;
+ * turning it back off clears the rate on save. A product with no wholesale rate
+ * simply is not discounted — approved wholesale buyers pay retail for it.
+ *
+ * PRD 8.9 — a staff account can edit everything except the price fields, which
+ * are disabled here and refused by the server regardless.
  */
 export function AdminProductFormScreen() {
   const navigation = useNavigation();
@@ -53,6 +57,8 @@ export function AdminProductFormScreen() {
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [retailPrice, setRetailPrice] = useState('');
   const [wholesalePrice, setWholesalePrice] = useState('');
+  // Off by default: a new product is retail-only until the admin opts in.
+  const [wholesaleEnabled, setWholesaleEnabled] = useState(false);
   const [stock, setStock] = useState('0');
   const [sku, setSku] = useState('');
   const [tags, setTags] = useState('');
@@ -76,9 +82,11 @@ export function AdminProductFormScreen() {
         setDescription(product.description);
         setCategory(product.category?.id);
         setRetailPrice(paiseToRupeeInput(product.retailPrice));
-        setWholesalePrice(
-          product.wholesalePrice !== undefined ? paiseToRupeeInput(product.wholesalePrice) : '',
-        );
+        // An existing wholesale rate switches the toggle on, so editing a
+        // wholesale product does not silently drop its rate on save.
+        const hasWholesale = product.wholesalePrice !== undefined && product.wholesalePrice !== null;
+        setWholesaleEnabled(hasWholesale);
+        setWholesalePrice(hasWholesale ? paiseToRupeeInput(product.wholesalePrice as number) : '');
         setStock(String(product.stock));
         setSku(product.sku ?? '');
         setTags(product.tags.join(', '));
@@ -99,12 +107,16 @@ export function AdminProductFormScreen() {
     description: description.trim().length < 1 ? 'Enter a description' : null,
     category: !category ? 'Choose a category' : null,
     retailPrice: !retailPrice.trim() || retailPaise <= 0 ? 'Enter the retail price' : null,
+    // Only validated while the toggle is on — a retail-only product has no
+    // wholesale price to get wrong.
     wholesalePrice:
-      canManagePrice && (!wholesalePrice.trim() || wholesalePaise <= 0)
-        ? 'Enter the wholesale price'
-        : canManagePrice && wholesalePaise > retailPaise
-          ? 'Wholesale price cannot exceed retail price'
-          : null,
+      !canManagePrice || !wholesaleEnabled
+        ? null
+        : !wholesalePrice.trim() || wholesalePaise <= 0
+          ? 'Enter the wholesale price'
+          : wholesalePaise > retailPaise
+            ? 'Wholesale price cannot exceed retail price'
+            : null,
     stock: Number.isNaN(Number(stock)) || Number(stock) < 0 ? 'Enter a valid stock count' : null,
   };
   const isValid = Object.values(errors).every((value) => value === null);
@@ -166,9 +178,13 @@ export function AdminProductFormScreen() {
           tags: tagList,
           isActive,
           // Price fields are only sent when this account may change them —
-          // sending them as staff would be a guaranteed 403.
+          // sending them as staff would be a guaranteed 403. An explicit null
+          // tells the server to drop a rate the toggle just turned off.
           ...(canManagePrice
-            ? { retailPrice: retailPaise, wholesalePrice: wholesalePaise }
+            ? {
+                retailPrice: retailPaise,
+                wholesalePrice: wholesaleEnabled ? wholesalePaise : null,
+              }
             : {}),
         });
       } else {
@@ -178,7 +194,8 @@ export function AdminProductFormScreen() {
           category: category as string,
           images,
           retailPrice: retailPaise,
-          wholesalePrice: wholesalePaise,
+          // Omitted entirely for a retail-only product.
+          ...(wholesaleEnabled ? { wholesalePrice: wholesalePaise } : {}),
           stock: Number(stock),
           sku: sku.trim() || undefined,
           tags: tagList,
@@ -290,32 +307,49 @@ export function AdminProductFormScreen() {
           </View>
           {touched && errors.category ? <Text style={styles.error}>{errors.category}</Text> : null}
 
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Input
-                label="Retail price (₹)"
-                value={retailPrice}
-                onChangeText={setRetailPrice}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                editable={canManagePrice}
-                style={!canManagePrice ? styles.disabledInput : undefined}
-                error={touched ? errors.retailPrice : null}
-              />
+          <Input
+            label="Retail price (₹)"
+            value={retailPrice}
+            onChangeText={setRetailPrice}
+            keyboardType="decimal-pad"
+            placeholder="0"
+            editable={canManagePrice}
+            style={!canManagePrice ? styles.disabledInput : undefined}
+            error={touched ? errors.retailPrice : null}
+          />
+
+          {canManagePrice ? (
+            <View style={styles.wholesaleBlock}>
+              <View style={styles.switchRowTight}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.switchLabel}>Also sell at a wholesale rate</Text>
+                  <Text style={styles.switchHint}>
+                    {wholesaleEnabled
+                      ? 'Approved wholesale buyers pay the price below.'
+                      : 'Off — this product sells at the retail price to everyone.'}
+                  </Text>
+                </View>
+                <Switch
+                  value={wholesaleEnabled}
+                  onValueChange={setWholesaleEnabled}
+                  trackColor={{ true: colors.primary, false: colors.borderStrong }}
+                />
+              </View>
+
+              {wholesaleEnabled ? (
+                <Input
+                  label="Wholesale price (₹)"
+                  value={wholesalePrice}
+                  onChangeText={setWholesalePrice}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  autoFocus
+                  error={touched ? errors.wholesalePrice : null}
+                  hint="Must be the same as or lower than the retail price."
+                />
+              ) : null}
             </View>
-            <View style={{ flex: 1 }}>
-              <Input
-                label="Wholesale price (₹)"
-                value={wholesalePrice}
-                onChangeText={setWholesalePrice}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                editable={canManagePrice}
-                style={!canManagePrice ? styles.disabledInput : undefined}
-                error={touched ? errors.wholesalePrice : null}
-              />
-            </View>
-          </View>
+          ) : null}
 
           {!canManagePrice ? (
             <Text style={styles.permissionNote}>
@@ -437,6 +471,21 @@ const styles = StyleSheet.create({
     color: colors.warning,
     marginBottom: spacing.lg,
     marginTop: -spacing.sm,
+  },
+
+  wholesaleBlock: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+    marginBottom: spacing.lg,
+  },
+  switchRowTight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
   },
 
   switchRow: {

@@ -94,7 +94,8 @@ export const productApi = {
     category: string;
     images?: string[];
     retailPrice: number;
-    wholesalePrice: number;
+    /** Omit for a retail-only product — the wholesale toggle is opt-in. */
+    wholesalePrice?: number;
     stock: number;
     sku?: string;
     tags?: string[];
@@ -109,7 +110,8 @@ export const productApi = {
       category: string;
       images: string[];
       retailPrice: number;
-      wholesalePrice: number;
+      /** null clears the wholesale rate — switching the toggle back off. */
+      wholesalePrice: number | null;
       stock: number;
       sku: string;
       tags: string[];

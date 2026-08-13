@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { env, isProduction } from '../config/env';
+import { devShortcutsAllowed, env, isProduction } from '../config/env';
 import { logger } from '../config/logger';
 import { getStore } from '../config/redis';
 import { ApiError } from '../utils/ApiError';
@@ -52,27 +52,36 @@ async function dispatch(phone: string, code: string): Promise<void> {
       return;
     }
 
-    case 'firebase':
-      // Firebase Phone Auth issues and verifies the OTP on the client; the
-      // server never sends it. If the client confirms Firebase, switch the app
-      // to POST the resulting Firebase ID token to /auth/firebase/verify
-      // instead of calling this endpoint. See README "OTP providers".
-      throw ApiError.serviceUnavailable(
-        'OTP_PROVIDER=firebase is client-issued. Use the Firebase ID token exchange endpoint instead.',
-      );
-
+    case 'fake':
     case 'console':
     default:
-      if (isProduction) {
+      // Refused in production unless UNSAFE_DEV_MODE was set on purpose — see
+      // the note on that variable.
+      if (!devShortcutsAllowed) {
         throw ApiError.serviceUnavailable('OTP provider is not configured for production.');
       }
       logger.info(`[DEV OTP] ${phone} → ${code}`);
   }
 }
 
+/**
+ * The code to issue for this send.
+ *
+ * `fake` returns the same known code every time so any number can be signed in
+ * without an SMS gateway — a stand-in until the real provider is chosen. It is
+ * unreachable in production: dispatch() refuses first.
+ */
+function issueCode(): string {
+  return env.OTP_PROVIDER === 'fake' ? env.OTP_FAKE_CODE : generateCode(env.OTP_LENGTH);
+}
+
 export interface SendOtpResult {
   expiresInSeconds: number;
-  /** Returned only outside production so the dev client can auto-fill. */
+  /**
+   * Lets the client auto-fill the code. Withheld whenever the dev shortcuts are
+   * locked out, which is every real deployment — there it would hand the OTP to
+   * whoever asked for it.
+   */
   devCode?: string;
 }
 
@@ -87,17 +96,21 @@ export async function sendOtp(phone: string): Promise<SendOtpResult> {
     );
   }
 
-  const sends = await store.incr(SEND_COUNT_KEY(phone));
-  if (sends === 1) {
-    await store.expire(SEND_COUNT_KEY(phone), 3600);
-  }
-  if (sends > env.OTP_MAX_SEND_PER_HOUR) {
-    throw ApiError.tooManyRequests(
-      `You can request at most ${env.OTP_MAX_SEND_PER_HOUR} codes per hour. Please try again later.`,
-    );
+  // The per-number send cap exists to stop SMS-bombing. The fake provider sends
+  // no SMS, and the cap only gets in the way of testing, so it is skipped there.
+  if (env.OTP_PROVIDER !== 'fake') {
+    const sends = await store.incr(SEND_COUNT_KEY(phone));
+    if (sends === 1) {
+      await store.expire(SEND_COUNT_KEY(phone), 3600);
+    }
+    if (sends > env.OTP_MAX_SEND_PER_HOUR) {
+      throw ApiError.tooManyRequests(
+        `You can request at most ${env.OTP_MAX_SEND_PER_HOUR} codes per hour. Please try again later.`,
+      );
+    }
   }
 
-  const code = generateCode(env.OTP_LENGTH);
+  const code = issueCode();
   const hash = await bcrypt.hash(code, 10);
 
   await store.set(OTP_KEY(phone), hash, env.OTP_TTL_SECONDS);
@@ -107,7 +120,7 @@ export async function sendOtp(phone: string): Promise<SendOtpResult> {
 
   return {
     expiresInSeconds: env.OTP_TTL_SECONDS,
-    ...(isProduction ? {} : { devCode: code }),
+    ...(devShortcutsAllowed ? { devCode: code } : {}),
   };
 }
 

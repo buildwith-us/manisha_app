@@ -32,12 +32,15 @@ npm run seed              # categories, sample products, first admin account
 npm run dev               # http://localhost:4000/api/v1
 ```
 
-`npm run seed` prints the admin phone number (`SEED_ADMIN_PHONE`, default
-`+919999999999`). Sign in with it to reach the admin panel.
+**Signing in.** `OTP_PROVIDER=fake` sends no SMS: `OTP_FAKE_CODE` (default
+`123456`) is issued and accepted for *every* number, and is returned in the API
+response as `devCode` so the app auto-fills it. This is a temporary stand-in
+until the SMS module is chosen, and is refused when `NODE_ENV=production`.
 
-With `OTP_PROVIDER=console` the OTP is printed to the server log **and**
-returned in the API response as `devCode`, so the app auto-fills it. This is
-disabled in production.
+**Admin access.** There is no separate admin login. Any number listed in
+`ADMIN_PHONES` (default `+919345548984`) is signed in as an admin through the
+ordinary **Retail** tab, and lands in the admin panel. To make some other number
+an admin, add it to `ADMIN_PHONES`, or use `npm run set-role` (see below).
 
 ### 3. Mobile
 
@@ -54,10 +57,10 @@ The app resolves its API base URL in this order:
 3. Platform default — `http://10.0.2.2:4000/api/v1` on the Android emulator,
    `http://localhost:4000/api/v1` elsewhere
 
-> **Expo Go vs development build.** Everything except **remote push** works in
-> Expo Go. `expo-notifications` cannot receive remote push on Android in Expo Go
-> from SDK 53 onward, so run `npx expo run:android` / `run:ios` (or an EAS dev
-> build) to test FCM/APNs end-to-end.
+> **Push notifications are currently unwired.** Firebase/FCM has been removed
+> pending a replacement provider. Notifications are still created, stored and
+> listed inside the app — only the OS-level banner is missing. Everything else
+> works in Expo Go.
 
 ---
 
@@ -89,6 +92,89 @@ cd mobile && npx tsc --noEmit
 
 ---
 
+## First admin account
+
+An account created by signing in through the app always starts as `retail`, and
+every `/admin` route requires an admin to call it — so the first admin has to be
+set from outside the API. Otherwise the admin panel is unreachable and each
+admin write (adding a category, adding a product) comes back `403 FORBIDDEN`.
+
+```bash
+cd backend
+npm run set-role -- +919999999999 admin
+```
+
+Roles are `admin`, `staff`, `retail`, `wholesale`. A bare 10-digit Indian number
+is normalised to E.164. The account must exist first — sign in through the app
+once, then run this. **Sign out and back in afterwards** so the app picks up the
+new permission set.
+
+`npm run seed` promotes `SEED_ADMIN_PHONE` too, but it upserts the sample
+catalog at the same time — use `set-role` against a database that already holds
+real products.
+
+---
+
+## Deployed backend (Render)
+
+`https://manisha-fashion-backend.onrender.com/api/v1`
+
+[`mobile/app.json`](mobile/app.json) points `extra.apiUrl` here, because an
+installed APK cannot reach a laptop on `localhost`. Set it back to `null` for
+local development.
+
+### Environment variables to set on Render
+
+| Key | Value | Why |
+| --- | --- | --- |
+| `UNSAFE_DEV_MODE` | `true` | **Required while `OTP_PROVIDER=fake`.** Production refuses the fake OTP and the in-process store without it, which is why sign-in returned `503 OTP provider is not configured for production`. |
+| `OTP_PROVIDER` | `fake` | No SMS gateway is wired yet. |
+| `OTP_FAKE_CODE` | `123456` | The code every number accepts. |
+| `ADMIN_PHONES` | `+919345548984` | Signs that number in as admin — no separate admin login. |
+| `MONGODB_URI` | Atlas SRV string | Render's DNS resolves SRV correctly, so the `mongodb+srv://` form is fine there. |
+| `CLOUDINARY_*` | as in `.env` | Image upload. |
+
+> ### ⚠️ `UNSAFE_DEV_MODE=true` means there is no real authentication
+> Anyone who knows a phone number can sign in as that person with `123456` —
+> **including the admin number**, which grants full control of the catalogue,
+> orders and accounts. It is a pre-launch testing shortcut, not a login system.
+> Set it to `false` the moment the SMS provider is wired, and treat the store as
+> publicly writable until then.
+
+Atlas must also allow Render's outbound IPs (or `0.0.0.0/0`) under
+**Network Access**, or the API boots but every query times out.
+
+---
+
+## Troubleshooting
+
+**`querySrv ECONNREFUSED _mongodb._tcp.<cluster>.mongodb.net`** — Node resolves
+`mongodb+srv://` through c-ares using its *own* DNS server list, which can
+differ from the system resolver. Compare them:
+
+```bash
+node -e "console.log(require('dns').getServers())"   # what Node uses
+# PowerShell: Get-DnsClientServerAddress -AddressFamily IPv4
+```
+
+If Node reports something nothing is listening on (`127.0.0.1` is the usual
+culprit), the SRV lookup fails even though `nslookup` resolves the record fine.
+Use Atlas's **standard** (non-SRV) connection string — it names the shard hosts
+directly and goes through the OS resolver, so it is unaffected:
+
+```
+mongodb://<user>:<pass>@<shard>-00-00.<id>.mongodb.net:27017,<shard>-00-01...:27017/<db>?ssl=true&replicaSet=<rs>&authSource=admin&retryWrites=true&w=majority
+```
+
+Atlas shows it under *Connect → Drivers → "I'll use the standard connection
+string"*. The `replicaSet` and `authSource` values are also in the cluster's TXT
+record (`Resolve-DnsName <cluster>.mongodb.net -Type TXT`).
+
+**`EADDRINUSE :4000`** — a previous `npm run dev` is still holding the port.
+`Get-NetTCPConnection -LocalPort 4000 -State Listen` gives you the PID to stop.
+
+---
+
 ## Configuration
 
 Everything lives in `backend/.env` (never committed — PRD §8.5). See
@@ -99,10 +185,11 @@ Everything lives in `backend/.env` (never committed — PRD §8.5). See
 | Database | `MONGODB_URI` | MongoDB Atlas M0 is sufficient at launch (PRD §8.2). |
 | Cache | `REDIS_URL` | OTP storage + rate-limit counters. Required in production. |
 | JWT | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL_DAYS` | Long random values. `JWT_REFRESH_TTL_DAYS` is the admin-configurable idle period (default 90 — PRD §4.1). |
-| OTP | `OTP_PROVIDER`, `MSG91_*` | `console` (dev), `msg91` (live). See "OTP providers" below. |
+| OTP | `OTP_PROVIDER`, `OTP_FAKE_CODE`, `MSG91_*` | `fake` (no SMS, fixed code), `console` (random code, logged), `msg91` (live). See "OTP providers" below. |
+| Admin | `ADMIN_PHONES` | Comma-separated numbers always signed in as admin. Removes the need for a separate admin login. |
 | Images | `CLOUDINARY_*` | Without these, image upload returns 503; everything else works. |
 | Payments | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Without these only COD is offered — the app hides the online option. |
-| Push | `FIREBASE_SERVICE_ACCOUNT_PATH` or `_JSON` | Without these, notifications are persisted in-app but not pushed. |
+| Push | *(none)* | Firebase removed. Notifications are persisted and shown in-app but not pushed to the OS. |
 | Commerce | `COD_SHIPPING_CHARGE`, `PREPAID_SHIPPING_CHARGE` | **Integer paise** (`5000` = ₹50). Served to the app via `GET /config`. |
 
 Every integration degrades gracefully: the API boots and reports what is wired
@@ -110,14 +197,21 @@ up at `GET /api/v1/health`.
 
 ### OTP providers
 
-`console` and `msg91` are implemented. `OTP_PROVIDER=firebase` deliberately
-returns a 503 with an explanatory message: **Firebase Phone Auth issues and
-verifies the OTP on the client**, so the server never sends it. If you choose
-Firebase, the client should verify with the Firebase SDK and exchange the
-resulting Firebase ID token for a session — that exchange endpoint is not built,
-since the PRD's flow (`POST /auth/otp/send` → `verify`) matches MSG91.
+| Provider | Behaviour |
+| --- | --- |
+| `fake` | **Current default.** No SMS. `OTP_FAKE_CODE` (default `123456`) is issued for, and accepted from, every number. The per-number send cap is skipped so it does not get in the way of testing. Refused in production. |
+| `console` | A random code, printed to the server log and returned as `devCode`. Refused in production. |
+| `msg91` | Real SMS via MSG91. The only provider valid in production. |
 
-MSG91 live delivery is still pending on the client's side per PRD §2.
+`fake` is a deliberate placeholder until the SMS module is picked. Swapping
+providers is a one-line `.env` change — nothing in the auth flow moves, because
+send/verify stay server-side either way.
+
+To add a provider, extend `dispatch()` in
+[`services/otp.service.ts`](backend/src/services/otp.service.ts). A
+*client-issued* scheme (where the SDK verifies the code on the device and hands
+back an ID token) does not fit that seam — it needs a token-exchange endpoint
+instead of `POST /auth/otp/verify`.
 
 ---
 
@@ -239,15 +333,27 @@ Base path `/api/v1`. All responses are `{ success, data, meta? }` or
    single canonical deployment".
 2. **`fcmToken` is an array, not a single field** (§8.2). One customer with a
    phone and a tablet needs two tokens; a scalar silently drops the older
-   device. Dead tokens are pruned when FCM reports them unregistered.
+   device. Tokens are still collected so the replacement push provider has them
+   ready, even though nothing delivers to them right now.
 3. **Staff cannot *create* products, only edit them.** §8.9 gives staff "product
-   management" but "no pricing changes", while §4.7 makes both prices required
-   with no auto-derived default. Creation therefore necessarily sets prices, so
-   it is admin-only; staff retain stock, images, description, category and
-   visibility. Flag this with the client alongside the other §6 open items.
-4. **Addresses are embedded on the User document** rather than a separate
+   management" but "no pricing changes", and creating a product always sets its
+   retail price. Creation is therefore admin-only; staff retain stock, images,
+   description, category and visibility. Flag this with the client alongside the
+   other §6 open items.
+4. **The wholesale price is optional, against §4.7's "both required".** The
+   admin form adds a product at retail only, and a wholesale rate is set just
+   for the products that have one — turned on by a toggle that then asks for the
+   price. A product with no wholesale rate is not discounted: an approved
+   wholesale buyer pays retail for it, and the order line records `retail` as
+   the tier so the record matches what was charged. Retail price remains
+   mandatory, and a supplied wholesale price still may not exceed it.
+5. **Firebase/FCM has been removed** pending a replacement, so §4.6's push
+   delivery is currently unwired. Notifications are still created, persisted and
+   listed in-app; only the OS banner is missing. `deliver()` in
+   `notification.service.ts` is the single seam a new provider plugs into.
+6. **Addresses are embedded on the User document** rather than a separate
    collection — they are only ever read with their owner.
-5. **`GET /config` was added** so the app can show the COD shipping charge
+7. **`GET /config` was added** so the app can show the COD shipping charge
    before the order is placed, without hard-coding a figure the PRD lists as an
    open item.
 

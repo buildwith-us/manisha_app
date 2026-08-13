@@ -1,14 +1,17 @@
-import { getMessaging } from '../config/firebase';
-import { logger } from '../config/logger';
 import { Notification } from '../models/notification.model';
 import { User } from '../models/user.model';
 import { ApiError } from '../utils/ApiError';
 import type { NotificationAudience } from '../types';
 
 /**
- * PRD 4.6 / 8.4 — push via FCM (Android + iOS through the APNs bridge), with
- * every message also persisted so the app can show an in-app notification list
- * (PRD 8.1 notificationSlice).
+ * PRD 4.6 — notifications.
+ *
+ * Firebase/FCM has been removed. Every message is still persisted, which is
+ * what the in-app notification list reads (PRD 8.1 notificationSlice), so the
+ * feature works end to end minus the OS-level banner. Device tokens are still
+ * collected by /auth/devices so the replacement push provider has them ready.
+ *
+ * To wire a new provider: implement `deliver()` below. Nothing else changes.
  */
 
 export interface PushPayload {
@@ -18,51 +21,12 @@ export interface PushPayload {
   category?: 'order' | 'wholesale' | 'promotion' | 'system';
 }
 
-const FCM_BATCH_SIZE = 500;
-
-async function pushToTokens(tokens: string[], payload: PushPayload): Promise<number> {
-  const messaging = getMessaging();
-  if (!messaging || tokens.length === 0) return 0;
-
-  let delivered = 0;
-  const staleTokens: string[] = [];
-
-  for (let index = 0; index < tokens.length; index += FCM_BATCH_SIZE) {
-    const batch = tokens.slice(index, index + FCM_BATCH_SIZE);
-    try {
-      const response = await messaging.sendEachForMulticast({
-        tokens: batch,
-        notification: { title: payload.title, body: payload.body },
-        data: payload.data,
-        android: { priority: 'high' },
-        apns: { payload: { aps: { sound: 'default' } } },
-      });
-      delivered += response.successCount;
-
-      // Drop tokens FCM tells us are dead, so the list does not grow forever.
-      response.responses.forEach((result, position) => {
-        const code = result.error?.code;
-        if (
-          code === 'messaging/registration-token-not-registered' ||
-          code === 'messaging/invalid-argument'
-        ) {
-          const token = batch[position];
-          if (token) staleTokens.push(token);
-        }
-      });
-    } catch (error) {
-      logger.error('FCM multicast failed', error);
-    }
-  }
-
-  if (staleTokens.length > 0) {
-    await User.updateMany(
-      { 'fcmTokens.token': { $in: staleTokens } },
-      { $pull: { fcmTokens: { token: { $in: staleTokens } } } },
-    );
-  }
-
-  return delivered;
+/**
+ * The single delivery seam. Returns how many devices were actually reached —
+ * zero while no provider is wired, which is what `deliveredCount` records.
+ */
+async function deliver(_tokens: string[], _payload: PushPayload): Promise<number> {
+  return 0;
 }
 
 export async function notifyUser(userId: string, payload: PushPayload): Promise<void> {
@@ -77,7 +41,7 @@ export async function notifyUser(userId: string, payload: PushPayload): Promise<
 
   const user = await User.findById(userId).select('fcmTokens');
   if (!user) return;
-  await pushToTokens(user.fcmTokens.map((entry) => entry.token), payload);
+  await deliver(user.fcmTokens.map((entry) => entry.token), payload);
 }
 
 /** PRD 4.7 — admin-triggered broadcast, all users or segmented by tier. */
@@ -96,7 +60,7 @@ export async function broadcast(
   const users = await User.find(filter).select('_id fcmTokens');
   const tokens = users.flatMap((user) => user.fcmTokens.map((entry) => entry.token));
 
-  const delivered = await pushToTokens(tokens, payload);
+  const delivered = await deliver(tokens, payload);
 
   await Notification.create({
     audience,

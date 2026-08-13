@@ -1,13 +1,21 @@
 import { createApp } from './app';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { env } from './config/env';
-import { initFirebase } from './config/firebase';
 import { logger } from './config/logger';
 import { disconnectRedis, initRedis } from './config/redis';
 
 async function bootstrap(): Promise<void> {
+  if (env.NODE_ENV === 'production' && env.UNSAFE_DEV_MODE) {
+    // Loud on purpose. In this state anyone who knows a phone number can sign
+    // in as that person with the fixed code.
+    logger.warn('!'.repeat(58));
+    logger.warn('UNSAFE_DEV_MODE is ON in production.');
+    logger.warn(`Any number can sign in with the fixed OTP "${env.OTP_FAKE_CODE}".`);
+    logger.warn('This is for pre-launch testing only — unset it before go-live.');
+    logger.warn('!'.repeat(58));
+  }
+
   initRedis();
-  initFirebase();
   await connectDatabase();
 
   const app = createApp();

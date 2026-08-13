@@ -54,13 +54,15 @@ const STAFF_PERMISSIONS: Permission[] = [
 
 const ADMIN_PERMISSIONS: Permission[] = [
   ...STAFF_PERMISSIONS,
+  // An admin also shops as a customer, so they hold the full customer set — not
+  // a hand-picked subset. Listing only cart/order-create left an admin able to
+  // place an order they were then refused permission to cancel, and 403'd on
+  // the wishlist.
+  ...CUSTOMER_PERMISSIONS,
   PERMISSIONS.PRODUCT_PRICE_MANAGE,
   PERMISSIONS.WHOLESALE_APPROVE,
   PERMISSIONS.NOTIFICATION_BROADCAST,
   PERMISSIONS.USER_MANAGE,
-  PERMISSIONS.ORDER_READ_OWN,
-  PERMISSIONS.CART_MANAGE,
-  PERMISSIONS.ORDER_CREATE,
 ];
 
 /**

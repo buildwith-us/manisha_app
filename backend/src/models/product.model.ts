@@ -2,8 +2,12 @@ import { Schema, model, type Document, type Types } from 'mongoose';
 
 /**
  * PRD 8.2 — Product.
- * retailPrice / wholesalePrice are integer paise. Both are required with no
- * auto-derived default (PRD 4.7): admin sets each one explicitly.
+ *
+ * Prices are integer paise. `retailPrice` is always required. `wholesalePrice`
+ * is optional: the admin form adds a product at retail only by default, and a
+ * wholesale rate is set only when the toggle is turned on. A product without
+ * one is simply not discounted — approved wholesale buyers pay retail for it
+ * (see effectivePriceFor).
  */
 export interface IProduct extends Document<Types.ObjectId> {
   _id: Types.ObjectId;
@@ -12,7 +16,7 @@ export interface IProduct extends Document<Types.ObjectId> {
   category: Types.ObjectId;
   images: string[];
   retailPrice: number;
-  wholesalePrice: number;
+  wholesalePrice?: number;
   stock: number;
   sku?: string;
   tags: string[];
@@ -36,7 +40,7 @@ const productSchema = new Schema<IProduct>(
       },
     },
     retailPrice: { type: Number, required: true, min: 0 },
-    wholesalePrice: { type: Number, required: true, min: 0 },
+    wholesalePrice: { type: Number, required: false, min: 0 },
     stock: { type: Number, required: true, min: 0, default: 0 },
     sku: { type: String, trim: true, uppercase: true, sparse: true },
     tags: { type: [String], default: [], index: true },
