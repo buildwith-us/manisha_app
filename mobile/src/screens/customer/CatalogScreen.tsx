@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Chip, EmptyState, ErrorBanner, LoadingView, Screen } from '../../components/ui';
 import { Icon } from '../../components/Icon';
 import { ProductCard } from '../../components/ProductCard';
+import { PressableScale, StaggerItem } from '../../components/motion';
 import { useAppDispatch, useAppSelector, useIsStaff } from '../../store/hooks';
 import { useAuthGate } from '../../hooks/useAuthGate';
 import {
@@ -148,7 +148,7 @@ export function CatalogScreen() {
               autoCorrect={false}
             />
           </View>
-          <Pressable
+          <PressableScale
             onPress={() => navigation.navigate('Filters')}
             style={styles.filterButton}
             accessibilityRole="button"
@@ -156,7 +156,7 @@ export function CatalogScreen() {
           >
             <Icon name="sliders" size={19} color={colors.text} strokeWidth={1.8} />
             {activeFilterCount > 0 ? <View style={styles.filterDot} /> : null}
-          </Pressable>
+          </PressableScale>
         </View>
 
         <ScrollView
@@ -184,7 +184,7 @@ export function CatalogScreen() {
       ) : null}
 
       {loading && items.length === 0 ? (
-        <LoadingView label="Loading the collection…" />
+        <LoadingView variant="grid" />
       ) : (
         <FlatList
           // A search result stays tappable while the keyboard is open;
@@ -193,14 +193,18 @@ export function CatalogScreen() {
           data={items}
           keyExtractor={(item) => item.id}
           numColumns={2}
-          renderItem={({ item }) => (
-            <ProductCard
-              product={item}
-              onPress={openProduct}
-              onToggleWishlist={isStaff ? undefined : handleWishlist}
-              wishlisted={wishlistIds.includes(item.id)}
-              showBothPrices={isStaff}
-            />
+          renderItem={({ item, index }) => (
+            // flex:1 on the wrapper so the two-column layout is unchanged —
+            // the card itself is flex:1 and would otherwise collapse.
+            <StaggerItem index={index} style={styles.gridCell}>
+              <ProductCard
+                product={item}
+                onPress={openProduct}
+                onToggleWishlist={isStaff ? undefined : handleWishlist}
+                wishlisted={wishlistIds.includes(item.id)}
+                showBothPrices={isStaff}
+              />
+            </StaggerItem>
           )}
           contentContainerStyle={styles.list}
           // FlatList windowing — the PRD's fix for the previous client's
@@ -280,6 +284,7 @@ const styles = StyleSheet.create({
 
   bannerWrap: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
 
+  gridCell: { flex: 1 },
   list: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xl },
   endOfList: {
     ...typography.caption,

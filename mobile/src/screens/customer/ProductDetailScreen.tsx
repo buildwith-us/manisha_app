@@ -8,6 +8,7 @@ import { ReviewsSection, Stars } from '../../components/Reviews';
 import { ProductCard } from '../../components/ProductCard';
 import { Icon } from '../../components/Icon';
 import { QuantityStepper } from '../../components/QuantityStepper';
+import { PressableScale } from '../../components/motion';
 import { productApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { useAppDispatch, useAppSelector, useIsStaff } from '../../store/hooks';
@@ -247,14 +248,14 @@ export function ProductDetailScreen() {
           )}
 
           <View style={styles.heroControls} pointerEvents="box-none">
-            <Pressable
+            <PressableScale
               onPress={() => navigation.goBack()}
               style={styles.glassButton}
               accessibilityRole="button"
               accessibilityLabel="Go back"
             >
               <Icon name="chevronLeft" size={19} color={colors.text} />
-            </Pressable>
+            </PressableScale>
 
             {isWholesale ? (
               <View style={styles.glassPill}>
@@ -263,17 +264,17 @@ export function ProductDetailScreen() {
             ) : null}
 
             <View style={styles.heroActions}>
-              <Pressable
+              <PressableScale
                 onPress={handleShare}
                 style={styles.glassButton}
                 accessibilityRole="button"
                 accessibilityLabel="Share this product"
               >
                 <Icon name="send" size={17} color={colors.text} />
-              </Pressable>
+              </PressableScale>
 
               {!isStaff ? (
-                <Pressable
+                <PressableScale
                   onPress={handleToggleWishlist}
                   style={styles.glassButton}
                   accessibilityRole="button"
@@ -285,7 +286,7 @@ export function ProductDetailScreen() {
                     color={wishlisted ? colors.primary : colors.text}
                     filled={wishlisted}
                   />
-                </Pressable>
+                </PressableScale>
               ) : null}
             </View>
           </View>

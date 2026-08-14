@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -13,6 +12,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Divider, EmptyState, ErrorBanner, ListRow, LoadingView, Screen } from '../../components/ui';
 import { Icon } from '../../components/Icon';
+import { PressableScale, StaggerItem } from '../../components/motion';
 import { productApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { PERMISSIONS, usePermission } from '../../store/hooks';
@@ -74,7 +74,7 @@ export function AdminProductsScreen() {
     }, [load]),
   );
 
-  if (loading && items.length === 0) return <LoadingView label="Loading catalogue…" />;
+  if (loading && items.length === 0) return <LoadingView variant="list" />;
 
   return (
     <Screen>
@@ -85,25 +85,25 @@ export function AdminProductsScreen() {
             <Text style={styles.title}>Products</Text>
           </View>
 
-          <Pressable
+          <PressableScale
             onPress={() => navigation.navigate('AdminCategories')}
             hitSlop={8}
             accessibilityRole="button"
           >
             <Text style={styles.link}>Categories</Text>
-          </Pressable>
+          </PressableScale>
 
           {/* PRD 8.9 — creating a product means setting both prices, so it is
               admin-only. Staff manage stock and content on existing products. */}
           {canCreate ? (
-            <Pressable
+            <PressableScale
               onPress={() => navigation.navigate('AdminProductForm')}
               accessibilityRole="button"
               accessibilityLabel="Add a product"
               style={[styles.addButton, shadowAccent]}
             >
               <Icon name="plus" size={19} color={colors.textInverse} strokeWidth={2.2} />
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
 
@@ -166,12 +166,13 @@ export function AdminProductsScreen() {
             <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.xl }} />
           ) : null
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const out = item.stock === 0;
           const low = item.stock > 0 && item.stock <= 5;
 
           return (
-            <ListRow
+            <StaggerItem index={index}>
+              <ListRow
               image={item.images[0]}
               withThumb
               title={item.name}
@@ -194,7 +195,8 @@ export function AdminProductsScreen() {
               trailingTone={low ? 'accent' : 'default'}
               dimmed={!item.isActive}
               onPress={() => navigation.navigate('AdminProductForm', { productId: item.id })}
-            />
+              />
+            </StaggerItem>
           );
         }}
       />

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { PressableScale } from '../../components/motion';
 import { useNavigation } from '@react-navigation/native';
 import {
   EmptyState,
@@ -87,7 +88,7 @@ export function AdminCategoriesScreen() {
     ]);
   };
 
-  if (loading) return <LoadingView />;
+  if (loading) return <LoadingView variant="list" />;
 
   const canAdd = name.trim().length >= 2;
 
@@ -113,11 +114,11 @@ export function AdminCategoriesScreen() {
             returnKeyType="done"
             style={styles.addInput}
           />
-          <Pressable onPress={handleAdd} disabled={!canAdd || saving} hitSlop={8}>
+          <PressableScale onPress={handleAdd} disabled={!canAdd || saving} hitSlop={8}>
             <Text style={[styles.addAction, !canAdd && styles.addActionDisabled]}>
               {saving ? 'Adding…' : 'Add'}
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
 
         {categories.length === 0 ? (
@@ -142,9 +143,9 @@ export function AdminCategoriesScreen() {
                   </View>
 
                   {!category.isActive ? (
-                    <Pressable onPress={() => handleDelete(category)} hitSlop={8}>
+                    <PressableScale onPress={() => handleDelete(category)} hitSlop={8}>
                       <Text style={styles.delete}>Delete</Text>
-                    </Pressable>
+                    </PressableScale>
                   ) : null}
 
                   <Toggle

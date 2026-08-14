@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -8,6 +7,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { ErrorBanner, FieldRow, Group, KeyboardAwareScrollView, Row, Screen, Segmented, Toggle } from '../../components/ui';
+import { PressableScale } from '../../components/motion';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { saveAddress } from '../../store/slices/authSlice';
 import { colors, spacing, typography } from '../../theme';
@@ -97,13 +97,13 @@ export function AddressFormScreen() {
     <Screen edges={['top']}>
       {/* A sheet bar rather than a push bar: cancel and save flank a centred title. */}
       <View style={styles.bar}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
+        <PressableScale onPress={() => navigation.goBack()} hitSlop={10}>
           <Text style={styles.cancel}>Cancel</Text>
-        </Pressable>
+        </PressableScale>
         <Text style={styles.barTitle}>{params?.addressId ? 'Edit address' : 'New address'}</Text>
-        <Pressable onPress={handleSave} disabled={submitting} hitSlop={10}>
+        <PressableScale onPress={handleSave} disabled={submitting} hitSlop={10}>
           <Text style={styles.save}>{submitting ? 'Saving…' : 'Save'}</Text>
-        </Pressable>
+        </PressableScale>
       </View>
 
       {/* Scrolls the focused field above the keyboard. The previous

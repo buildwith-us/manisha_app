@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '../../components/motion';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -169,9 +170,9 @@ export function AccountScreen() {
           </View>
         ) : null}
 
-        <Pressable onPress={handleSignOut} style={styles.logOut} accessibilityRole="button">
+        <PressableScale onPress={handleSignOut} style={styles.logOut} accessibilityRole="button">
           <Text style={styles.logOutLabel}>Log out</Text>
-        </Pressable>
+        </PressableScale>
       </ScrollView>
     </Screen>
   );

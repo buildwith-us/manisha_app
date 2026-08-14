@@ -2,6 +2,8 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Icon } from './Icon';
+import { PressableScale } from './motion';
+import { motion } from '../theme/motion';
 import { colors, radius, shadowSoft, spacing, typography } from '../theme';
 import { formatPaise } from '../utils/money';
 import type { Product } from '../api/types';
@@ -38,9 +40,9 @@ function ProductCardComponent({
   const lowStock = product.inStock && product.stock <= 5;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={() => onPress(product)}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={styles.card}
       accessibilityRole="button"
       accessibilityLabel={`${product.name}, ${formatPaise(product.price)}`}
     >
@@ -59,9 +61,10 @@ function ProductCardComponent({
         )}
 
         {onToggleWishlist ? (
-          <Pressable
+          <PressableScale
             onPress={() => onToggleWishlist(product)}
             hitSlop={10}
+            scaleTo={motion.pressScaleSmall}
             style={styles.wishlistButton}
             accessibilityRole="button"
             accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Save for later'}
@@ -72,7 +75,7 @@ function ProductCardComponent({
               color={wishlisted ? colors.primary : colors.textMuted}
               filled={wishlisted}
             />
-          </Pressable>
+          </PressableScale>
         ) : null}
       </View>
 
@@ -103,7 +106,7 @@ function ProductCardComponent({
           Wholesale {formatPaise(product.wholesalePrice)} · Stock {product.stock}
         </Text>
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 

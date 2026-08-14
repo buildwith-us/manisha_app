@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, ErrorBanner, InfoBanner, NavBar, Screen } from '../../components/ui';
+import { PressableScale } from '../../components/motion';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { clearError, resetOtpFlow, sendOtp, verifyOtp } from '../../store/slices/authSlice';
 // ⚠️ TEMPORARY DEV AUTH — REMOVE BEFORE PRODUCTION (see src/config/devAuth.ts)
@@ -125,7 +126,7 @@ export function OtpScreen() {
           <InfoBanner message={`Development mode — code auto-filled: ${devCode}`} tone="warning" />
         ) : null}
 
-        <Pressable onPress={() => inputRef.current?.focus()} style={styles.boxes}>
+        <PressableScale onPress={() => inputRef.current?.focus()} style={styles.boxes}>
           {Array.from({ length: OTP_LENGTH }).map((_, index) => {
             const active = index === code.length;
             return (
@@ -138,7 +139,7 @@ export function OtpScreen() {
               </View>
             );
           })}
-        </Pressable>
+        </PressableScale>
 
         {/* A single hidden input backs the six boxes so SMS autofill works. */}
         <TextInput
@@ -155,13 +156,13 @@ export function OtpScreen() {
 
         <View style={styles.resendRow}>
           <Text style={styles.resendLabel}>Didn't get it?</Text>
-          <Pressable onPress={handleResend} disabled={secondsLeft > 0} hitSlop={8}>
+          <PressableScale onPress={handleResend} disabled={secondsLeft > 0} hitSlop={8}>
             <Text style={[styles.resendAction, secondsLeft > 0 && styles.resendWaiting]}>
               {secondsLeft > 0
                 ? `Resend in 0:${String(secondsLeft).padStart(2, '0')}`
                 : 'Resend code'}
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
 
         <View style={styles.note}>

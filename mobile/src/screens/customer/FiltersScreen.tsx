@@ -12,6 +12,7 @@ import {
   Toggle,
 } from '../../components/ui';
 import { Icon } from '../../components/Icon';
+import { PressableScale } from '../../components/motion';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchProducts, resetFilters, setFilters } from '../../store/slices/productSlice';
 import { colors, radius, shadowSoft, spacing, typography } from '../../theme';
@@ -70,7 +71,7 @@ export function FiltersScreen() {
 
       <View style={styles.titleRow}>
         <Text style={styles.title}>Filter & sort</Text>
-        <Pressable
+        <PressableScale
           onPress={() => navigation.goBack()}
           hitSlop={10}
           style={styles.close}
@@ -78,7 +79,7 @@ export function FiltersScreen() {
           accessibilityLabel="Close"
         >
           <Icon name="close" size={15} color={colors.textMuted} strokeWidth={2.2} />
-        </Pressable>
+        </PressableScale>
       </View>
 
       <KeyboardAwareScrollView contentContainerStyle={styles.scroll}>

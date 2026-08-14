@@ -13,6 +13,7 @@ import {
   Screen,
 } from '../../components/ui';
 import { QuantityStepper } from '../../components/QuantityStepper';
+import { PressableScale } from '../../components/motion';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   clearError,
@@ -47,7 +48,7 @@ export function CartScreen() {
     }, [dispatch]),
   );
 
-  if (loading && !cart) return <LoadingView label="Loading your cart…" />;
+  if (loading && !cart) return <LoadingView variant="list" />;
 
   const items = cart?.items ?? [];
   const hasStockIssue = items.some((item) => item.stockIssue);
@@ -88,7 +89,7 @@ export function CartScreen() {
         <Group>
           {items.map((item) => (
             <View key={item.productId} style={styles.row}>
-              <Pressable
+              <PressableScale
                 onPress={() => navigation.navigate('ProductDetail', { productId: item.productId })}
               >
                 {item.product.images[0] ? (
@@ -101,7 +102,7 @@ export function CartScreen() {
                 ) : (
                   <View style={styles.thumb} />
                 )}
-              </Pressable>
+              </PressableScale>
 
               <View style={styles.details}>
                 <Text style={styles.name} numberOfLines={2}>
@@ -126,14 +127,14 @@ export function CartScreen() {
                     flagged={Boolean(item.stockIssue)}
                   />
 
-                  <Pressable
+                  <PressableScale
                     onPress={() => dispatch(removeFromCart(item.productId))}
                     hitSlop={8}
                     accessibilityRole="button"
                     accessibilityLabel={`Remove ${item.product.name}`}
                   >
                     <Text style={styles.remove}>Remove</Text>
-                  </Pressable>
+                  </PressableScale>
 
                   <View style={{ flex: 1 }} />
                   <Text style={styles.lineTotal}>{formatPaise(item.lineTotal)}</Text>

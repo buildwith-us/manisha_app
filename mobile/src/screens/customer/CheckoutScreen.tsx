@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '../../components/motion';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -111,12 +112,12 @@ export function CheckoutScreen() {
                 </Text>
                 <Text style={styles.addressLine}>{selectedAddress.phone}</Text>
               </View>
-              <Pressable
+              <PressableScale
                 onPress={() => navigation.navigate('Addresses', { selectMode: true })}
                 hitSlop={8}
               >
                 <Text style={styles.action}>Change</Text>
-              </Pressable>
+              </PressableScale>
             </View>
           </View>
         ) : (
@@ -216,7 +217,7 @@ function PaymentOption({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
       accessibilityRole="radio"
@@ -235,7 +236,7 @@ function PaymentOption({
       {note ? (
         <Text style={noteTone === 'success' ? styles.optionFree : styles.optionNote}>{note}</Text>
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 

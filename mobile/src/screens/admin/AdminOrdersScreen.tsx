@@ -22,6 +22,7 @@ import {
   StatusText,
 } from '../../components/ui';
 import { Icon } from '../../components/Icon';
+import { StaggerItem } from '../../components/motion';
 import { adminApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { colors, orderStatusStyle, radius, shadow, spacing, typography } from '../../theme';
@@ -96,7 +97,7 @@ export function AdminOrdersScreen() {
     void load(1, next);
   };
 
-  if (loading && orders.length === 0) return <LoadingView label="Loading orders…" />;
+  if (loading && orders.length === 0) return <LoadingView variant="list" />;
 
   return (
     <Screen>
@@ -172,12 +173,13 @@ export function AdminOrdersScreen() {
             <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.xl }} />
           ) : null
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const style = orderStatusStyle[item.orderStatus];
           const pieces = item.items.reduce((sum, entry) => sum + entry.quantity, 0);
 
           return (
-            <ListRow
+            <StaggerItem index={index}>
+              <ListRow
               title={item.orderNumber}
               subtitle={`${item.customer?.name ?? 'Customer'} · ${item.customer?.phone ?? '—'}`}
               trailing={<StatusText label={style.label} color={style.fg} />}
@@ -197,7 +199,8 @@ export function AdminOrdersScreen() {
                   <Text style={styles.total}>{formatPaise(item.totalAmount)}</Text>
                 </View>
               }
-            />
+              />
+            </StaggerItem>
           );
         }}
       />

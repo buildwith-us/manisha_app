@@ -24,6 +24,8 @@ import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Icon, type IconName } from './Icon';
 import { colors, radius, shadow, shadowAccent, shadowSoft, spacing, typography } from '../theme';
+import { motion } from '../theme/motion';
+import { ListRowSkeleton, PressableScale, ProductCardSkeleton } from './motion';
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
 
@@ -392,6 +394,7 @@ export function ListRow({
             style={styles.listThumb}
             contentFit="cover"
             cachePolicy="memory-disk"
+            transition={motion.imageFade}
           />
         ) : null}
 
@@ -570,7 +573,13 @@ export function ImageSlots({
     <View style={styles.slotRow}>
       {uris.map((uri, index) => (
         <View key={uri} style={styles.slot}>
-          <Image source={uri} style={styles.slotImage} contentFit="cover" cachePolicy="memory-disk" />
+          <Image
+            source={uri}
+            style={styles.slotImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={motion.imageFade}
+          />
           {index === 0 ? (
             <View style={styles.slotCover}>
               <Text style={styles.slotCoverText}>Cover</Text>
@@ -730,12 +739,9 @@ export function Card({
 }) {
   if (onPress) {
     return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [styles.card, shadow, pressed && styles.pressed, style]}
-      >
+      <PressableScale onPress={onPress} style={[styles.card, shadow, style]}>
         {children}
-      </Pressable>
+      </PressableScale>
     );
   }
   return <View style={[styles.card, shadow, style]}>{children}</View>;
@@ -803,18 +809,19 @@ export function Button({
     : colors.primary;
 
   return (
-    <Pressable
+    // Scale rather than the opacity dim it replaces: a 25% fade reads as
+    // "disabled", a 3% scale reads as "listening".
+    <PressableScale
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={onPress}
       disabled={isDisabled}
-      style={({ pressed }) => [
+      style={[
         styles.button,
         compact && styles.buttonCompact,
         { backgroundColor: background, alignSelf: fullWidth ? 'stretch' : 'flex-start' },
         variant === 'secondary' && shadowSoft,
         isFilled && !isDisabled && shadowAccent,
-        pressed && !isDisabled && styles.pressed,
         style,
       ]}
     >
@@ -823,7 +830,7 @@ export function Button({
       ) : (
         <Text style={[styles.buttonLabel, { color: foreground }]}>{label}</Text>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -1019,7 +1026,44 @@ export function CountBadge({ count }: { count: number }) {
 
 /* ── States ─────────────────────────────────────────────────────────────── */
 
-export function LoadingView({ label = 'Loading…' }: { label?: string }) {
+/**
+ * Loading state.
+ *
+ * `list` and `grid` render skeletons in the shape of what is arriving. A
+ * spinner only says "something is happening"; a skeleton says what, and roughly
+ * how much — which is why it reads as faster at an identical load time. The
+ * plain spinner remains the honest choice where the shape genuinely is not
+ * known ahead of time.
+ */
+export function LoadingView({
+  label = 'Loading…',
+  variant = 'spinner',
+}: {
+  label?: string;
+  variant?: 'spinner' | 'list' | 'grid';
+}) {
+  if (variant === 'list') {
+    return (
+      <View style={styles.skeletonList}>
+        {Array.from({ length: 6 }).map((_, index) => (
+          <ListRowSkeleton key={index} />
+        ))}
+      </View>
+    );
+  }
+
+  if (variant === 'grid') {
+    return (
+      <View style={styles.skeletonGrid}>
+        {Array.from({ length: 6 }).map((_, index) => (
+          <View key={index} style={styles.skeletonGridCell}>
+            <ProductCardSkeleton />
+          </View>
+        ))}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.centered}>
       <ActivityIndicator color={colors.primary} size="large" />
@@ -1056,9 +1100,9 @@ export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: (
     <View style={styles.errorBanner}>
       <Text style={styles.errorText}>{message}</Text>
       {onRetry ? (
-        <Pressable onPress={onRetry} hitSlop={8}>
+        <PressableScale onPress={onRetry} hitSlop={8}>
           <Text style={styles.errorRetry}>Retry</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
     </View>
   );
@@ -1126,6 +1170,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   rowPressed: { backgroundColor: colors.surfacePressed },
+  skeletonList: { paddingTop: spacing.sm },
+  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.md },
+  skeletonGridCell: { width: '50%' },
   rowLabel: { ...typography.body, color: colors.text },
   rowDetail: { ...typography.caption, color: colors.textFaint, marginTop: 3 },
   rowValue: { ...typography.calloutStrong, color: colors.text },

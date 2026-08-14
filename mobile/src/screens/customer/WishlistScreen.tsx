@@ -4,6 +4,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, EmptyState, LargeTitle, Screen } from '../../components/ui';
 import { ProductCard } from '../../components/ProductCard';
+import { StaggerItem } from '../../components/motion';
 import { wishlistApi } from '../../api/endpoints';
 import { useAppDispatch } from '../../store/hooks';
 import { toggleWishlist } from '../../store/slices/productSlice';
@@ -84,13 +85,15 @@ export function WishlistScreen() {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />
         }
-        renderItem={({ item }) => (
-          <ProductCard
-            product={item}
-            onPress={(product) => navigation.navigate('ProductDetail', { productId: product.id })}
-            onToggleWishlist={handleRemove}
-            wishlisted
-          />
+        renderItem={({ item, index }) => (
+          <StaggerItem index={index} style={styles.gridCell}>
+            <ProductCard
+              product={item}
+              onPress={(product) => navigation.navigate('ProductDetail', { productId: product.id })}
+              onToggleWishlist={handleRemove}
+              wishlisted
+            />
+          </StaggerItem>
         )}
         ListFooterComponent={
           items.length > 0 ? (
@@ -105,6 +108,7 @@ export function WishlistScreen() {
 }
 
 const styles = StyleSheet.create({
+  gridCell: { flex: 1 },
   list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
   footer: {
     ...typography.caption,

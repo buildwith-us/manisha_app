@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button, Divider, EmptyState, Group, SectionLabel } from './ui';
 import { Icon } from './Icon';
+import { PressableScale } from './motion';
 import { colors, radius, spacing, typography } from '../theme';
 import type { RatingSummary, Review } from '../api/types';
 
@@ -129,9 +130,9 @@ function ReviewRow({ review, onDelete }: { review: Review; onDelete?: () => void
       {review.comment ? <Text style={styles.reviewBody}>{review.comment}</Text> : null}
 
       {review.mine && onDelete ? (
-        <Pressable onPress={onDelete} hitSlop={8} accessibilityRole="button">
+        <PressableScale onPress={onDelete} hitSlop={8} accessibilityRole="button">
           <Text style={styles.removeReview}>Remove my review</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
     </View>
   );

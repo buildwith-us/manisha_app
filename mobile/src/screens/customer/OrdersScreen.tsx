@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, EmptyState, Group, LargeTitle, Screen } from '../../components/ui';
+import { PressableScale } from '../../components/motion';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchOrders } from '../../store/slices/cartSlice';
 import { colors, orderStatusStyle, spacing, typography } from '../../theme';
@@ -72,7 +73,7 @@ export function OrdersScreen() {
             const thumbs = order.items.filter((item) => item.image).slice(0, 3);
 
             return (
-              <Pressable
+              <PressableScale
                 key={order.id}
                 onPress={() => navigation.navigate('OrderDetail', { orderId: order.id })}
                 accessibilityRole="button"
@@ -114,7 +115,7 @@ export function OrdersScreen() {
                     <Text style={styles.total}>{formatPaise(order.totalAmount)}</Text>
                   </View>
                 ) : null}
-              </Pressable>
+              </PressableScale>
             );
           })}
         </Group>

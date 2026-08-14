@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import {
+  Pressable,
   Alert,
   Modal,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { PressableScale } from '../../components/motion';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   Button,
@@ -116,7 +117,7 @@ export function AdminWholesaleScreen() {
       </View>
 
       {loading && applications.length === 0 ? (
-        <LoadingView />
+        <LoadingView variant="list" />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -251,9 +252,9 @@ function ApplicationCard({
             style={styles.approve}
           />
           {status === 'pending' ? (
-            <Pressable onPress={onReject} style={styles.reject} accessibilityRole="button">
+            <PressableScale onPress={onReject} style={styles.reject} accessibilityRole="button">
               <Text style={styles.rejectLabel}>Reject</Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
       ) : null}
@@ -289,6 +290,8 @@ function RejectSheet({
       onRequestClose={onClose}
       onShow={() => setReason('')}
     >
+      {/* Plain Pressable: the scrim is a dismiss target, not a control —
+          scaling the dimming layer would read as a glitch. */}
       <Pressable style={styles.scrim} onPress={onClose} />
       <View style={styles.sheet}>
         <View style={styles.grabberRow}>
@@ -333,9 +336,9 @@ function RejectSheet({
             disabled={reason.trim().length < 4}
             style={{ marginTop: spacing.xl }}
           />
-          <Pressable onPress={onClose} style={styles.sheetCancel} accessibilityRole="button">
+          <PressableScale onPress={onClose} style={styles.sheetCancel} accessibilityRole="button">
             <Text style={styles.sheetCancelLabel}>Cancel</Text>
-          </Pressable>
+          </PressableScale>
         </ScrollView>
       </View>
     </Modal>

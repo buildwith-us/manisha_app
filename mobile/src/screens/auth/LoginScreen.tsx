@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, ErrorBanner, Input, Screen, Segmented } from '../../components/ui';
+import { PressableScale } from '../../components/motion';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
   clearError,
@@ -74,14 +75,14 @@ export function LoginScreen() {
       {/* Sign-in opens over whatever a guest was browsing, so backing out has
           to be possible — it returns them there, still a guest. */}
       {navigation.canGoBack() ? (
-        <Pressable
+        <PressableScale
           onPress={() => navigation.goBack()}
           hitSlop={10}
           accessibilityRole="button"
           style={styles.cancel}
         >
           <Text style={styles.cancelLabel}>Cancel</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
 
       <Image source={require('../../../assets/logo.jpeg')} style={styles.logo} />

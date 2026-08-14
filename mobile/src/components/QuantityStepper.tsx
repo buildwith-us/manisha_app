@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from './motion';
+import { motion } from '../theme/motion';
 import { colors, radius, spacing, typography } from '../theme';
 
 /**
@@ -39,9 +41,10 @@ export function QuantityStepper({
         { backgroundColor: flagged ? colors.primarySoft : colors.background },
       ]}
     >
-      <Pressable
+      <PressableScale
         onPress={() => onChange(quantity - 1)}
         disabled={!canDecrease}
+        scaleTo={motion.pressScaleSmall}
         style={[styles.button, large && styles.buttonLarge]}
         accessibilityRole="button"
         accessibilityLabel="Decrease quantity"
@@ -49,15 +52,16 @@ export function QuantityStepper({
         <Text style={[styles.symbol, large && styles.symbolLarge, { color: canDecrease ? ink : inkDim }]}>
           −
         </Text>
-      </Pressable>
+      </PressableScale>
 
       <Text style={[styles.quantity, large && styles.quantityLarge, { color: ink }]}>
         {quantity}
       </Text>
 
-      <Pressable
+      <PressableScale
         onPress={() => onChange(quantity + 1)}
         disabled={!canIncrease}
+        scaleTo={motion.pressScaleSmall}
         style={[styles.button, large && styles.buttonLarge]}
         accessibilityRole="button"
         accessibilityLabel="Increase quantity"
@@ -65,7 +69,7 @@ export function QuantityStepper({
         <Text style={[styles.symbol, large && styles.symbolLarge, { color: canIncrease ? ink : inkDim }]}>
           +
         </Text>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }

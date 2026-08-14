@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '../../components/motion';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import {
   Button,
@@ -221,14 +222,14 @@ export function AdminOrderDetailScreen() {
         ) : null}
 
         {canUpdateStatus && canCancel ? (
-          <Pressable
+          <PressableScale
             onPress={() => handleStatusChange('cancelled')}
             disabled={updating}
             style={styles.cancel}
             accessibilityRole="button"
           >
             <Text style={styles.cancelLabel}>Cancel order</Text>
-          </Pressable>
+          </PressableScale>
         ) : null}
       </View>
     </Screen>

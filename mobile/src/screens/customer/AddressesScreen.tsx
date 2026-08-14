@@ -11,6 +11,7 @@ import {
   SelectionMark,
 } from '../../components/ui';
 import { Icon } from '../../components/Icon';
+import { PressableScale } from '../../components/motion';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { deleteAddress, fetchAddresses, saveAddress } from '../../store/slices/authSlice';
 import { colors, radius, shadowSoft, spacing, typography } from '../../theme';
@@ -79,7 +80,7 @@ export function AddressesScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <Group>
           {addresses.map((address) => (
-            <Pressable
+            <PressableScale
               key={address.id}
               onPress={() => void handleSelect(address.id)}
               accessibilityRole="radio"
@@ -103,29 +104,29 @@ export function AddressesScreen() {
                 <Text style={styles.line}>{address.phone}</Text>
 
                 <View style={styles.actions}>
-                  <Pressable
+                  <PressableScale
                     onPress={() => navigation.navigate('AddressForm', { addressId: address.id })}
                     hitSlop={8}
                   >
                     <Text style={styles.action}>Edit</Text>
-                  </Pressable>
-                  <Pressable onPress={() => handleDelete(address.id)} hitSlop={8}>
+                  </PressableScale>
+                  <PressableScale onPress={() => handleDelete(address.id)} hitSlop={8}>
                     <Text style={[styles.action, styles.actionQuiet]}>Delete</Text>
-                  </Pressable>
+                  </PressableScale>
                 </View>
               </View>
-            </Pressable>
+            </PressableScale>
           ))}
         </Group>
 
-        <Pressable
+        <PressableScale
           onPress={() => navigation.navigate('AddressForm')}
           accessibilityRole="button"
           style={[styles.addRow, shadowSoft]}
         >
           <Icon name="plus" size={20} color={colors.primary} />
           <Text style={styles.addLabel}>Add a new address</Text>
-        </Pressable>
+        </PressableScale>
       </ScrollView>
 
       {selectMode ? (

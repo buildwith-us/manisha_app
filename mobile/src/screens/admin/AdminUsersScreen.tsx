@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
   Alert,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -21,6 +20,7 @@ import {
   StatusText,
 } from '../../components/ui';
 import { Icon } from '../../components/Icon';
+import { PressableScale } from '../../components/motion';
 import { adminApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { useAppSelector } from '../../store/hooks';
@@ -174,7 +174,7 @@ export function AdminUsersScreen() {
       </View>
 
       {loading && users.length === 0 ? (
-        <LoadingView />
+        <LoadingView variant="list" />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -234,12 +234,12 @@ export function AdminUsersScreen() {
                         themselves — the API enforces this too. */}
                     {!isSelf ? (
                       <View style={styles.actions}>
-                        <Pressable onPress={() => changeRole(user)} hitSlop={8}>
+                        <PressableScale onPress={() => changeRole(user)} hitSlop={8}>
                           <Text style={styles.action}>Change role</Text>
-                        </Pressable>
-                        <Pressable onPress={() => toggleActive(user)} hitSlop={8}>
+                        </PressableScale>
+                        <PressableScale onPress={() => toggleActive(user)} hitSlop={8}>
                           <Text style={[styles.action, styles.actionQuiet]}>Deactivate</Text>
-                        </Pressable>
+                        </PressableScale>
                       </View>
                     ) : null}
                   </View>

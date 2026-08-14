@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '../../components/motion';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import {
@@ -216,11 +217,11 @@ export function OrderDetailScreen() {
         </View>
 
         {order.cancellable ? (
-          <Pressable onPress={handleCancel} disabled={cancelling} style={styles.cancel}>
+          <PressableScale onPress={handleCancel} disabled={cancelling} style={styles.cancel}>
             <Text style={styles.cancelLabel}>
               {cancelling ? 'Cancelling…' : 'Cancel order'}
             </Text>
-          </Pressable>
+          </PressableScale>
         ) : null}
       </View>
     </Screen>

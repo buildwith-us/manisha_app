@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
+  Pressable,
   Alert,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +28,7 @@ import {
   Toggle,
 } from '../../components/ui';
 import { Icon } from '../../components/Icon';
+import { PressableScale } from '../../components/motion';
 import { productApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { PERMISSIONS, useAppSelector, usePermission } from '../../store/hooks';
@@ -243,15 +244,15 @@ export function AdminProductFormScreen() {
   return (
     <Screen edges={['top', 'bottom']}>
       <View style={styles.bar}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
+        <PressableScale onPress={() => navigation.goBack()} hitSlop={10}>
           <Text style={styles.cancel}>Cancel</Text>
-        </Pressable>
+        </PressableScale>
         <Text style={styles.barTitle}>{isEdit ? 'Edit product' : 'New product'}</Text>
-        <Pressable onPress={handleSave} disabled={saving || !isValid} hitSlop={10}>
+        <PressableScale onPress={handleSave} disabled={saving || !isValid} hitSlop={10}>
           <Text style={[styles.save, !isValid && styles.saveDisabled]}>
             {saving ? 'Saving…' : 'Save'}
           </Text>
-        </Pressable>
+        </PressableScale>
       </View>
 
       {/* Same fix as the address form: the old behavior={undefined} made this
@@ -446,9 +447,9 @@ export function AdminProductFormScreen() {
           </Text>
         ) : null}
         {isEdit && canManagePrice ? (
-          <Pressable onPress={handleDelete} style={styles.delete} accessibilityRole="button">
+          <PressableScale onPress={handleDelete} style={styles.delete} accessibilityRole="button">
             <Text style={styles.deleteLabel}>Delete product</Text>
-          </Pressable>
+          </PressableScale>
         ) : null}
       </View>
 
@@ -485,6 +486,8 @@ function CategoryPicker({
 }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      {/* Plain Pressable: the scrim is a dismiss target, not a control —
+          scaling the dimming layer would read as a glitch. */}
       <Pressable style={styles.scrim} onPress={onClose} />
       <View style={styles.sheet}>
         <View style={styles.grabberRow}>
@@ -492,9 +495,9 @@ function CategoryPicker({
         </View>
         <View style={styles.sheetTitleRow}>
           <Text style={styles.sheetTitle}>Category</Text>
-          <Pressable onPress={onClose} hitSlop={10} style={styles.sheetClose}>
+          <PressableScale onPress={onClose} hitSlop={10} style={styles.sheetClose}>
             <Icon name="close" size={15} color={colors.textMuted} strokeWidth={2.2} />
-          </Pressable>
+          </PressableScale>
         </View>
 
         <ScrollView contentContainerStyle={styles.sheetScroll} showsVerticalScrollIndicator={false}>
