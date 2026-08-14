@@ -30,6 +30,12 @@ export interface SerializedProduct {
   isActive: boolean;
   /** Which storefront this product appears in. */
   visibility: 'both' | 'retail' | 'wholesale';
+  /**
+   * Aggregate rating. Computed from the reviews collection rather than stored
+   * on the product, so it cannot drift out of sync with the reviews it
+   * summarises. Zero count means "no reviews yet", not "rated zero".
+   */
+  rating: { average: number; count: number };
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +58,7 @@ function serializeCategory(category: ProductLike['category']): SerializedProduct
 export function serializeProduct(
   product: IProduct,
   viewer?: AuthenticatedUser | null,
+  rating?: { average: number; count: number },
 ): SerializedProduct {
   const wholesaleVisible = canSeeWholesalePricing(viewer?.accountType, viewer?.wholesaleStatus);
   // Staff/admin see wholesale pricing for management, but they are not buyers —
@@ -75,6 +82,7 @@ export function serializeProduct(
     tags: product.tags ?? [],
     isActive: product.isActive,
     visibility: product.visibility ?? 'both',
+    rating: rating ?? { average: 0, count: 0 },
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };
@@ -83,8 +91,11 @@ export function serializeProduct(
 export function serializeProducts(
   products: IProduct[],
   viewer?: AuthenticatedUser | null,
+  ratings?: Map<string, { average: number; count: number }>,
 ): SerializedProduct[] {
-  return products.map((product) => serializeProduct(product, viewer));
+  return products.map((product) =>
+    serializeProduct(product, viewer, ratings?.get(product._id.toString())),
+  );
 }
 
 /**

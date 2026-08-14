@@ -178,6 +178,8 @@ export function AdminUsersScreen() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
+          // A row stays tappable while the search keyboard is open.
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl

@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg - 2,
   },
-  optionPressed: { backgroundColor: '#FAFAFB' },
+  optionPressed: { backgroundColor: colors.surfacePressed },
   optionDisabled: { opacity: 0.5 },
   optionTitle: { ...typography.bodyStrong, color: colors.text },
   optionSubtitle: { ...typography.caption, color: colors.textFaint, marginTop: 3 },

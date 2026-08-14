@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import { ErrorBanner, FieldRow, Group, Row, Screen, Segmented, Toggle } from '../../components/ui';
+import { ErrorBanner, FieldRow, Group, KeyboardAwareScrollView, Row, Screen, Segmented, Toggle } from '../../components/ui';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { saveAddress } from '../../store/slices/authSlice';
 import { colors, spacing, typography } from '../../theme';
@@ -109,15 +106,10 @@ export function AddressFormScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scroll}
-        >
+      {/* Scrolls the focused field above the keyboard. The previous
+          KeyboardAvoidingView used behavior={undefined} on Android, where that
+          makes the component do nothing at all. */}
+      <KeyboardAwareScrollView contentContainerStyle={styles.scroll}>
           {error ? <ErrorBanner message={error} /> : null}
 
           <Segmented
@@ -235,8 +227,7 @@ export function AddressFormScreen() {
               />
             </Group>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </Screen>
   );
 }

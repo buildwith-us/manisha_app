@@ -646,6 +646,104 @@ async function main(): Promise<void> {
     });
     check('an invalid visibility value is rejected', badVisibility.status === 422, badVisibility.body);
 
+    /* ── Reviews & ratings (PDP) ───────────────────────────────────────── */
+    section('Reviews & ratings');
+
+    const revProdId = await mkVisible('Reviewable Product', 'both');
+
+    const emptyReviews = await call('GET', `/products/${revProdId}/reviews`);
+    check('reviews are readable by a guest', emptyReviews.status === 200, emptyReviews.body);
+    check('empty product has zero reviews', emptyReviews.body.data?.summary?.count === 0, emptyReviews.body.data);
+    check('empty average is 0, not null', emptyReviews.body.data?.summary?.average === 0, emptyReviews.body.data);
+
+    const postReview = await call('POST', `/products/${revProdId}/reviews`, {
+      token: buyerToken,
+      body: { rating: 5, comment: 'Beautiful piece, exactly as pictured.' },
+    });
+    check('a signed-in customer can post a review', postReview.status === 201, postReview.body);
+    check('the review echoes its rating', postReview.body.data?.rating === 5, postReview.body.data);
+    check(
+      'verifiedPurchase is false without a delivered order',
+      postReview.body.data?.verifiedPurchase === false,
+      postReview.body.data,
+    );
+    check('the author is named, never the raw phone', 
+      typeof postReview.body.data?.author === 'string' &&
+        !/\d{10}/.test(postReview.body.data.author),
+      postReview.body.data);
+
+    const guestPost = await call('POST', `/products/${revProdId}/reviews`, {
+      body: { rating: 4 },
+    });
+    check('a guest cannot post a review', guestPost.status === 401, guestPost.body);
+
+    const badRating = await call('POST', `/products/${revProdId}/reviews`, {
+      token: buyerToken,
+      body: { rating: 9 },
+    });
+    check('a rating outside 1-5 is rejected', badRating.status === 422, badRating.body);
+
+    // Second review from the same customer updates rather than duplicating.
+    const second = await call('POST', `/products/${revProdId}/reviews`, {
+      token: buyerToken,
+      body: { rating: 3, comment: 'Changed my mind.' },
+    });
+    check('re-reviewing succeeds', second.status === 201, second.body);
+
+    const afterEdit = await call('GET', `/products/${revProdId}/reviews`);
+    check('re-reviewing updates in place, not duplicates', afterEdit.body.data?.summary?.count === 1, afterEdit.body.data);
+    check('the updated rating replaces the old one', afterEdit.body.data?.summary?.average === 3, afterEdit.body.data);
+
+    // A different customer adds a second review; the average moves.
+    const other = await login('+919812300124');
+    await call('POST', `/products/${revProdId}/reviews`, {
+      token: other.accessToken,
+      body: { rating: 5 },
+    });
+    const twoReviews = await call('GET', `/products/${revProdId}/reviews`);
+    check('a second customer adds a distinct review', twoReviews.body.data?.summary?.count === 2, twoReviews.body.data);
+    check('the average is the mean of both', twoReviews.body.data?.summary?.average === 4, twoReviews.body.data);
+    check(
+      'the star breakdown counts each rating',
+      Array.isArray(twoReviews.body.data?.summary?.breakdown) &&
+        twoReviews.body.data.summary.breakdown[2] === 1 &&
+        twoReviews.body.data.summary.breakdown[4] === 1,
+      twoReviews.body.data?.summary?.breakdown,
+    );
+    check(
+      'a viewer sees which review is theirs',
+      (twoReviews.body.data?.items ?? []).every((r: any) => r.mine === false),
+      twoReviews.body.data?.items,
+    );
+    const mineFlagged = await call('GET', `/products/${revProdId}/reviews`, { token: buyerToken });
+    check(
+      'the signed-in author gets mine=true on their own review',
+      (mineFlagged.body.data?.items ?? []).some((r: any) => r.mine === true),
+      mineFlagged.body.data?.items,
+    );
+
+    // The product itself now carries the aggregate.
+    const ratedProduct = await call('GET', `/products/${revProdId}`);
+    check('product detail exposes the rating average', ratedProduct.body.data?.rating?.average === 4, ratedProduct.body.data?.rating);
+    check('product detail exposes the rating count', ratedProduct.body.data?.rating?.count === 2, ratedProduct.body.data?.rating);
+
+    const ratedInList = await call('GET', '/products?limit=100');
+    const listed = (ratedInList.body.data ?? []).find((p: any) => p.id === revProdId);
+    check('the catalogue list carries ratings too', listed?.rating?.count === 2, listed?.rating);
+    check(
+      'an unreviewed product reports zero, not null',
+      (ratedInList.body.data ?? []).some((p: any) => p.rating?.count === 0),
+      true,
+    );
+
+    const removed = await call('DELETE', `/products/${revProdId}/reviews`, { token: buyerToken });
+    check('a customer can delete their own review', removed.status === 200, removed.body);
+    const afterDelete = await call('GET', `/products/${revProdId}/reviews`);
+    check('deleting drops the count', afterDelete.body.data?.summary?.count === 1, afterDelete.body.data);
+
+    const reviewMissing = await call('GET', '/products/6a7e00000000000000000000/reviews');
+    check('reviews for a missing product 404', reviewMissing.status === 404, reviewMissing.body);
+
     /* ── Category delete last (it has products attached) ───────────────── */
     section('Category deletion guard');
     const delCat = await call('DELETE', `/products/categories/${catId}`, { token: adminToken });

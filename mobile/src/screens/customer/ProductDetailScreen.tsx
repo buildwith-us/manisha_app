@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Dimensions, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, EmptyState, LoadingView, Screen } from '../../components/ui';
+import { ReviewsSection, Stars } from '../../components/Reviews';
+import { ProductCard } from '../../components/ProductCard';
 import { Icon } from '../../components/Icon';
 import { QuantityStepper } from '../../components/QuantityStepper';
 import { productApi } from '../../api/endpoints';
@@ -15,7 +17,7 @@ import { toggleWishlist } from '../../store/slices/productSlice';
 import { colors, radius, spacing, typography } from '../../theme';
 import { formatPaise } from '../../utils/money';
 import type { RootStackParamList } from '../../navigation/types';
-import type { Product } from '../../api/types';
+import type { Product, RatingSummary, Review } from '../../api/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ProductDetail'>;
 type Route = RouteProp<RootStackParamList, 'ProductDetail'>;
@@ -35,7 +37,7 @@ export function ProductDetailScreen() {
   const { params } = useRoute<Route>();
   const dispatch = useAppDispatch();
   const isStaff = useIsStaff();
-  const { requireAuth } = useAuthGate();
+  const { isSignedIn, requireAuth } = useAuthGate();
 
   const wishlistIds = useAppSelector((state) => state.product.wishlistIds);
   const mutating = useAppSelector((state) => state.cart.mutating);
@@ -46,6 +48,23 @@ export function ProductDetailScreen() {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  /* Reviews are fetched separately from the product so a slow review query
+     never delays the price and the add-to-cart button. */
+  const [summary, setSummary] = useState<RatingSummary>({
+    average: 0,
+    count: 0,
+    breakdown: [0, 0, 0, 0, 0],
+  });
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewPage, setReviewPage] = useState(1);
+  const [reviewsHasMore, setReviewsHasMore] = useState(false);
+  const [loadingMoreReviews, setLoadingMoreReviews] = useState(false);
+  const [writingReview, setWritingReview] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  /** Same category, minus this product — a plain "you might also like" rail. */
+  const [related, setRelated] = useState<Product[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +87,93 @@ export function ProductDetailScreen() {
       cancelled = true;
     };
   }, [params.productId]);
+
+  const loadReviews = useCallback(
+    async (page: number) => {
+      const result = await productApi.reviews(params.productId, page);
+      setSummary(result.data.summary);
+      setReviews((current) =>
+        page === 1 ? result.data.items : [...current, ...result.data.items],
+      );
+      setReviewsHasMore(Boolean(result.pagination?.hasMore));
+      setReviewPage(page);
+    },
+    [params.productId],
+  );
+
+  useEffect(() => {
+    // Failure here is deliberately silent: the product is still perfectly
+    // usable without its reviews, and an error banner over the price would be
+    // out of proportion to what is missing.
+    void loadReviews(1).catch(() => undefined);
+  }, [loadReviews]);
+
+  // Related products: same category, this one removed.
+  useEffect(() => {
+    if (!product?.category?.id) return;
+    let cancelled = false;
+
+    productApi
+      .list({ category: product.category.id, sort: 'newest', page: 1, limit: 10 })
+      .then((result) => {
+        if (cancelled) return;
+        setRelated(result.data.filter((entry) => entry.id !== product.id).slice(0, 8));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [product?.category?.id, product?.id]);
+
+  const myReview = reviews.find((review) => review.mine);
+
+  const handleSubmitReview = async (input: { rating: number; comment?: string }) => {
+    setSubmittingReview(true);
+    try {
+      await productApi.submitReview(params.productId, input);
+      setWritingReview(false);
+      await loadReviews(1);
+      // The average shown beside the price comes from the product, so refresh
+      // it too rather than letting the two disagree.
+      setProduct(await productApi.detail(params.productId));
+    } catch (caught) {
+      setFeedback(caught instanceof ApiError ? caught.message : 'Could not save your review.');
+      setTimeout(() => setFeedback(null), 3000);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async () => {
+    try {
+      await productApi.deleteReview(params.productId);
+      await loadReviews(1);
+      setProduct(await productApi.detail(params.productId));
+    } catch {
+      setFeedback('Could not remove your review.');
+      setTimeout(() => setFeedback(null), 3000);
+    }
+  };
+
+  const handleLoadMoreReviews = async () => {
+    if (loadingMoreReviews) return;
+    setLoadingMoreReviews(true);
+    try {
+      await loadReviews(reviewPage + 1);
+    } finally {
+      setLoadingMoreReviews(false);
+    }
+  };
+
+  const handleShare = () => {
+    if (!product) return;
+    // No deep link exists for a product yet, so the sheet carries the name and
+    // price rather than a URL that would not open anything.
+    void Share.share({
+      message: `${product.name} — ${formatPaise(product.price)} at Manisha Fashions`,
+    }).catch(() => undefined);
+  };
 
   /** A guest is sent to sign-in; the add is replayed for them afterwards. */
   const handleAddToCart = () => {
@@ -154,21 +260,34 @@ export function ProductDetailScreen() {
               <View style={styles.glassPill}>
                 <Text style={styles.glassPillText}>Wholesale</Text>
               </View>
-            ) : !isStaff ? (
+            ) : null}
+
+            <View style={styles.heroActions}>
               <Pressable
-                onPress={handleToggleWishlist}
+                onPress={handleShare}
                 style={styles.glassButton}
                 accessibilityRole="button"
-                accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Save for later'}
+                accessibilityLabel="Share this product"
               >
-                <Icon
-                  name="heart"
-                  size={18}
-                  color={wishlisted ? colors.primary : colors.text}
-                  filled={wishlisted}
-                />
+                <Icon name="send" size={17} color={colors.text} />
               </Pressable>
-            ) : null}
+
+              {!isStaff ? (
+                <Pressable
+                  onPress={handleToggleWishlist}
+                  style={styles.glassButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={wishlisted ? 'Remove from wishlist' : 'Save for later'}
+                >
+                  <Icon
+                    name="heart"
+                    size={18}
+                    color={wishlisted ? colors.primary : colors.text}
+                    filled={wishlisted}
+                  />
+                </Pressable>
+              ) : null}
+            </View>
           </View>
 
           {product.images.length > 1 ? (
@@ -185,6 +304,19 @@ export function ProductDetailScreen() {
             <Text style={styles.category}>{product.category.name}</Text>
           ) : null}
           <Text style={styles.name}>{product.name}</Text>
+
+          {/* Rating sits with the name rather than in the reviews block, so the
+              social proof is visible without scrolling. Hidden entirely when
+              there are no reviews — an empty star row reads as a bad score. */}
+          {summary.count > 0 ? (
+            <View style={styles.ratingRow}>
+              <Stars value={summary.average} size="sm" />
+              <Text style={styles.ratingValue}>{summary.average.toFixed(1)}</Text>
+              <Text style={styles.ratingCount}>
+                ({summary.count} review{summary.count === 1 ? '' : 's'})
+              </Text>
+            </View>
+          ) : null}
 
           {isWholesale ? (
             <View style={styles.tradeCard}>
@@ -244,6 +376,51 @@ export function ProductDetailScreen() {
             </View>
           ) : null}
         </View>
+
+        <ReviewsSection
+          summary={summary}
+          reviews={reviews}
+          // Staff and admin manage the catalogue rather than shop it, so the
+          // write control is a customer-only affordance.
+          canWrite={isSignedIn && !isStaff}
+          writing={writingReview}
+          submitting={submittingReview}
+          hasMore={reviewsHasMore}
+          loadingMore={loadingMoreReviews}
+          myReview={myReview}
+          onStartWriting={() => setWritingReview(true)}
+          onSubmit={handleSubmitReview}
+          onDelete={handleDeleteReview}
+          onLoadMore={handleLoadMoreReviews}
+          signInPrompt={() =>
+            requireAuth({ type: 'openTab', tab: 'Account' }, () => setWritingReview(true))
+          }
+        />
+
+        {related.length > 0 ? (
+          <View style={styles.relatedSection}>
+            <Text style={styles.relatedTitle}>You might also like</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.relatedRail}
+            >
+              {related.map((entry) => (
+                <View key={entry.id} style={styles.relatedCard}>
+                  <ProductCard
+                    product={entry}
+                    onPress={(next) =>
+                      // push, not replace: backing out returns to the product
+                      // the customer came from.
+                      navigation.push('ProductDetail', { productId: next.id })
+                    }
+                    showBothPrices={isStaff}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -297,11 +474,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  heroActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   glassButton: {
     width: 36,
     height: 36,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: colors.glass,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -309,7 +487,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg - 2,
     paddingVertical: spacing.sm,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.82)',
+    backgroundColor: colors.glass,
   },
   glassPillText: { ...typography.tiny, fontWeight: '600', color: colors.text },
   dots: {
@@ -325,7 +503,7 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: colors.glassFaint,
   },
   dotActive: { backgroundColor: colors.surface },
 
@@ -375,6 +553,25 @@ const styles = StyleSheet.create({
   },
   specLabel: { ...typography.callout, color: colors.textMuted },
   specValue: { ...typography.calloutStrong, color: colors.text },
+
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  ratingValue: { ...typography.calloutStrong, color: colors.text },
+  ratingCount: { ...typography.footnote, color: colors.textFaint },
+
+  relatedSection: { marginTop: spacing.xxl, gap: spacing.md },
+  relatedTitle: {
+    ...typography.title,
+    color: colors.text,
+    paddingHorizontal: spacing.xl,
+  },
+  relatedRail: { paddingHorizontal: spacing.xl, gap: spacing.md },
+  // The card is built for a 2-up grid, so it needs an explicit width in a rail.
+  relatedCard: { width: Math.round(width * 0.42) },
 
   footer: {
     paddingHorizontal: spacing.xl,

@@ -12,6 +12,8 @@ import type {
   Product,
   ProductFilters,
   ProductVisibility,
+  RatingSummary,
+  Review,
   User,
   WholesaleStatus,
 } from './types';
@@ -116,6 +118,20 @@ export const productApi = {
   ) => patch<Product>(`/products/${id}`, input),
 
   remove: (id: string) => del<{ message: string }>(`/products/${id}`),
+
+  /* ── Reviews ─────────────────────────────────────────────────────────── */
+
+  reviews: (productId: string, page = 1, limit = 10) =>
+    getPaged<{ items: Review[]; summary: RatingSummary }>(`/products/${productId}/reviews`, {
+      params: { page, limit },
+    }),
+
+  /** Creates or replaces the signed-in customer's review for this product. */
+  submitReview: (productId: string, input: { rating: number; comment?: string }) =>
+    post<Review>(`/products/${productId}/reviews`, input),
+
+  deleteReview: (productId: string) =>
+    del<{ message: string }>(`/products/${productId}/reviews`),
 
   /**
    * PRD 8.3 — uploads go to Cloudinary via the backend, which returns the

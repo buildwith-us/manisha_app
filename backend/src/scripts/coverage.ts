@@ -219,6 +219,14 @@ async function main(): Promise<void> {
     form.append('images', new Blob([new Uint8Array([0xff, 0xd8, 0xff])], { type: 'image/jpeg' }), 'a.jpg');
     await call('POST', '/products/images', { token: adminToken, raw: form });
 
+    /* ── Reviews ───────────────────────────────────────────────────────── */
+    await call('GET', `/products/${prodId}/reviews`);
+    await call('POST', `/products/${prodId}/reviews`, {
+      token: shopperToken,
+      body: { rating: 5, comment: 'Coverage review' },
+    });
+    await call('DELETE', `/products/${prodId}/reviews`, { token: shopperToken });
+
     /* ── Cart & wishlist ───────────────────────────────────────────────── */
     await call('GET', '/cart', { token: shopperToken });
     await call('POST', '/cart/items', { token: shopperToken, body: { productId: prodId, quantity: 2 } });

@@ -59,6 +59,28 @@ export const colors = {
    */
   gold: '#86868B',
   goldSoft: '#F5F5F7',
+
+  /* ── Promoted from repeated literals ────────────────────────────────────
+   * These values were already hardcoded in several screens. They are named
+   * here so a screen never invents its own; every value is copied verbatim,
+   * so nothing renders any differently than before.
+   */
+  /** A grouped row while the finger is down. */
+  surfacePressed: '#FAFAFB',
+  /** Dimming behind a modal sheet. */
+  scrim: 'rgba(29,29,31,0.32)',
+  /** Frosted control floating over a product photograph. */
+  glass: 'rgba(255,255,255,0.82)',
+  /** The same treatment on a smaller card, where it sits slightly denser. */
+  glassStrong: 'rgba(255,255,255,0.85)',
+  /** An inactive gallery dot over a photograph. */
+  glassFaint: 'rgba(255,255,255,0.5)',
+  /** Label on a disabled filled button. */
+  textOnDisabled: '#A1A1A6',
+  /** Dark scrim over a photograph (image-slot remove button). */
+  scrimStrong: 'rgba(29,29,31,0.55)',
+  /** Hairline rule inside a filled input, dividing prefix from field. */
+  borderFaint: 'rgba(0,0,0,0.1)',
 } as const;
 
 /** 8px scale (with a 4px half-step). */

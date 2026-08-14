@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
   Button,
   Chip,
   Group,
+  KeyboardAwareScrollView,
   Row,
   Screen,
   SectionLabel,
@@ -80,7 +81,7 @@ export function FiltersScreen() {
         </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <KeyboardAwareScrollView contentContainerStyle={styles.scroll}>
         <SectionLabel>Sort by</SectionLabel>
         <Group>
           {SORT_OPTIONS.map((option) => {
@@ -139,7 +140,7 @@ export function FiltersScreen() {
             />
           </Group>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View style={styles.footer}>
         <Button label="Reset" onPress={clear} variant="secondary" fullWidth={false} style={styles.reset} />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Button, Group, Input, NavBar, Row, Screen, SectionLabel } from '../../components/ui';
+import { Button, Group, Input, KeyboardAwareScrollView, NavBar, Row, Screen, SectionLabel } from '../../components/ui';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { updateProfile } from '../../store/slices/authSlice';
 import { colors, spacing, typography, wholesaleStatusStyle } from '../../theme';
@@ -50,7 +50,7 @@ export function ProfileScreen() {
     <Screen edges={['top']}>
       <NavBar title="Profile" onBack={() => navigation.goBack()} />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scroll}
@@ -91,7 +91,7 @@ export function ProfileScreen() {
             <Button label="Save changes" onPress={handleSave} loading={saving} />
           </Group>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </Screen>
   );
 }

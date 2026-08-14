@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +17,7 @@ import {
   FieldRow,
   Group,
   ImageSlots,
+  KeyboardAwareScrollView,
   LoadingView,
   Row,
   Screen,
@@ -255,11 +254,9 @@ export function AdminProductFormScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      {/* Same fix as the address form: the old behavior={undefined} made this
+          a no-op on Android, so the lower fields sat under the keyboard. */}
+      <KeyboardAwareScrollView contentContainerStyle={styles.scroll}>
           {error ? <ErrorBanner message={error} /> : null}
 
           {images.length > 0 ? <SectionLabel>Images · first is the cover</SectionLabel> : null}
@@ -432,8 +429,7 @@ export function AdminProductFormScreen() {
               </FieldRow>
             </Group>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
 
       <View style={styles.footer}>
         <Button
@@ -563,7 +559,7 @@ const styles = StyleSheet.create({
   delete: { height: 50, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xs },
   deleteLabel: { ...typography.bodyStrong, color: colors.primary },
 
-  scrim: { flex: 1, backgroundColor: 'rgba(29,29,31,0.32)' },
+  scrim: { flex: 1, backgroundColor: colors.scrim },
   sheet: {
     maxHeight: '72%',
     backgroundColor: colors.background,

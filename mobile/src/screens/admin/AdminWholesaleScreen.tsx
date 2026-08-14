@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   },
   rejectLabel: { ...typography.bodyStrong, color: colors.textMuted },
 
-  scrim: { flex: 1, backgroundColor: 'rgba(29,29,31,0.32)' },
+  scrim: { flex: 1, backgroundColor: colors.scrim },
   sheet: {
     maxHeight: '80%',
     backgroundColor: colors.background,

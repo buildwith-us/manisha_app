@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Children, Fragment, isValidElement } from 'react';
+import { Children, Fragment, isValidElement, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +12,9 @@ import {
   Text,
   TextInput,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type ScrollViewProps,
   type StyleProp,
   type TextInputProps,
   type TextStyle,
@@ -22,6 +26,90 @@ import { Icon, type IconName } from './Icon';
 import { colors, radius, shadow, shadowAccent, shadowSoft, spacing, typography } from '../theme';
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
+
+/** Breathing room left between the focused field and the top of the keyboard. */
+const KEYBOARD_GAP = spacing.lg;
+
+/**
+ * A ScrollView that lifts the *focused* field above the keyboard.
+ *
+ * KeyboardAvoidingView alone only stops the keyboard overlapping the container;
+ * a field halfway down a long form still ends up underneath it. This measures
+ * the focused input when the keyboard appears and scrolls by exactly the amount
+ * needed — nothing moves when the field is already visible, so short screens
+ * stay still instead of jumping.
+ *
+ * Built on React Native's own APIs rather than a keyboard library: the two
+ * common choices either need Reanimated and a native build (which would end
+ * this project's Expo Go support) or are unmaintained on the New Architecture
+ * this app enables.
+ */
+export function KeyboardAwareScrollView({
+  children,
+  contentContainerStyle,
+  onScroll,
+  ...rest
+}: ScrollViewProps & { children?: ReactNode }) {
+  const scrollRef = useRef<ScrollView>(null);
+  const offsetY = useRef(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  const trackScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      offsetY.current = event.nativeEvent.contentOffset.y;
+      onScroll?.(event);
+    },
+    [onScroll],
+  );
+
+  useEffect(() => {
+    // `keyboardDidShow` rather than `willShow`: the frame is final by then, so
+    // the measurement is right first time and the scroll is one smooth move.
+    const show = Keyboard.addListener('keyboardDidShow', (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+
+      const keyboardTop = event.endCoordinates.screenY;
+      const focused = TextInput.State.currentlyFocusedInput();
+      if (!focused || typeof focused.measureInWindow !== 'function') return;
+
+      focused.measureInWindow((_x: number, y: number, _w: number, height: number) => {
+        const hidden = y + height + KEYBOARD_GAP - keyboardTop;
+        // Already clear of the keyboard — leave the scroll position alone so
+        // short screens do not jump for no reason.
+        if (hidden <= 0) return;
+
+        scrollRef.current?.scrollTo({ y: offsetY.current + hidden, animated: true });
+      });
+    });
+
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  return (
+    <ScrollView
+      ref={scrollRef}
+      onScroll={trackScroll}
+      scrollEventThrottle={16}
+      // The padding is what makes the scroll above actually reachable: without
+      // it a field near the end of the form has nothing to scroll into and the
+      // keyboard keeps covering it.
+      contentContainerStyle={[contentContainerStyle, { paddingBottom: keyboardHeight }]}
+      // Lets a button be tapped while the keyboard is open, instead of the
+      // first tap only dismissing it.
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      showsVerticalScrollIndicator={false}
+      {...rest}
+    >
+      {children}
+    </ScrollView>
+  );
+}
 
 export function Screen({
   children,
@@ -51,14 +139,22 @@ export function Screen({
 }) {
   const ground = tone === 'plain' ? colors.surface : colors.background;
 
+  // A scrolling screen with fields uses the keyboard-aware variant so the
+  // focused input is scrolled into view, not merely left un-overlapped.
   const body = scroll ? (
-    <ScrollView
-      contentContainerStyle={[styles.scrollContent, contentStyle]}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-      {children}
-    </ScrollView>
+    keyboardAvoiding ? (
+      <KeyboardAwareScrollView contentContainerStyle={[styles.scrollContent, contentStyle]}>
+        {children}
+      </KeyboardAwareScrollView>
+    ) : (
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, contentStyle]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {children}
+      </ScrollView>
+    )
   ) : (
     <View style={[{ flex: 1 }, contentStyle]}>{children}</View>
   );
@@ -702,7 +798,7 @@ export function Button({
 
   const foreground = isFilled
     ? isDisabled
-      ? '#A1A1A6'
+      ? colors.textOnDisabled
       : colors.textInverse
     : colors.primary;
 
@@ -1029,7 +1125,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.lg,
   },
-  rowPressed: { backgroundColor: '#FAFAFB' },
+  rowPressed: { backgroundColor: colors.surfacePressed },
   rowLabel: { ...typography.body, color: colors.text },
   rowDetail: { ...typography.caption, color: colors.textFaint, marginTop: 3 },
   rowValue: { ...typography.calloutStrong, color: colors.text },
@@ -1091,7 +1187,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderBottomLeftRadius: 12,
     borderBottomRightRadius: 12,
-    backgroundColor: 'rgba(29,29,31,0.55)',
+    backgroundColor: colors.scrimStrong,
     alignItems: 'center',
   },
   slotCoverText: { ...typography.tiny, fontSize: 10, color: colors.textInverse },
@@ -1177,7 +1273,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, paddingVertical: spacing.lg, fontSize: 19, color: colors.text },
   inputWithPrefix: { paddingLeft: 0 },
   inputPrefix: { fontSize: 19, fontWeight: '500', color: colors.textMuted },
-  inputPrefixRule: { width: 1, height: 22, backgroundColor: 'rgba(0,0,0,0.1)' },
+  inputPrefixRule: { width: 1, height: 22, backgroundColor: colors.borderFaint },
 
   segmented: { flexDirection: 'row', padding: 3, borderRadius: 11 },
   segment: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center' },

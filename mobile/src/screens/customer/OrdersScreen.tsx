@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
 
   row: { padding: spacing.xl },
   rowCancelled: { opacity: 0.5 },
-  rowPressed: { backgroundColor: '#FAFAFB' },
+  rowPressed: { backgroundColor: colors.surfacePressed },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   orderNumber: { ...typography.bodyStrong, fontWeight: '600', color: colors.text },
   status: { ...typography.captionStrong },

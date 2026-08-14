@@ -97,6 +97,8 @@ export interface Product {
   isActive: boolean;
   /** Which storefront the product appears in (admin-set). */
   visibility: ProductVisibility;
+  /** Aggregate review score; count 0 means "no reviews yet". */
+  rating: ProductRating;
   createdAt: string;
   updatedAt: string;
 }
@@ -167,6 +169,29 @@ export interface DashboardSummary {
   lowStockThreshold: number;
   lowStockProducts: Product[];
   ordersByStatus: Partial<Record<OrderStatus, number>>;
+}
+
+export interface ProductRating {
+  /** Mean of all ratings, one decimal. 0 when there are none. */
+  average: number;
+  count: number;
+}
+
+export interface RatingSummary extends ProductRating {
+  /** Counts per star: index 0 = 1★ … index 4 = 5★. */
+  breakdown: [number, number, number, number, number];
+}
+
+export interface Review {
+  id: string;
+  rating: number;
+  comment?: string;
+  verifiedPurchase: boolean;
+  /** Display name, or a masked phone when the customer has not set one. */
+  author: string;
+  /** True for the signed-in viewer's own review. */
+  mine: boolean;
+  createdAt: string;
 }
 
 export interface ProductFilters {

@@ -142,6 +142,9 @@ export function AdminOrdersScreen() {
       ) : null}
 
       <FlatList
+          // A search result stays tappable while the keyboard is open;
+          // without this the first tap only dismisses the keyboard.
+          keyboardShouldPersistTaps="handled"
         data={orders}
         keyExtractor={(order) => order.id}
         style={[styles.card, shadow]}

@@ -133,6 +133,9 @@ export function AdminProductsScreen() {
       ) : null}
 
       <FlatList
+          // A search result stays tappable while the keyboard is open;
+          // without this the first tap only dismisses the keyboard.
+          keyboardShouldPersistTaps="handled"
         data={items}
         keyExtractor={(item) => item.id}
         style={[styles.card, shadow]}

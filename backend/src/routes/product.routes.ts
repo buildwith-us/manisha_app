@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import * as productController from '../controllers/product.controller';
+import * as reviewController from '../controllers/review.controller';
 import { authenticate, optionalAuthenticate } from '../middleware/authenticate';
 import { allowGuestOrPermission, requirePermission } from '../middleware/authorize';
 import { writeLimiter } from '../middleware/rateLimiter';
@@ -9,6 +10,8 @@ import { objectIdParam } from '../validators/common';
 import {
   categoryListQuery,
   createCategorySchema,
+  reviewListQuery,
+  upsertReviewSchema,
   createProductSchema,
   productListQuery,
   updateCategorySchema,
@@ -81,6 +84,43 @@ router.post(
   requirePermission(PERMISSIONS.PRODUCT_MANAGE),
   upload.array('images', 10),
   productController.uploadImages,
+);
+
+/* ── Reviews (PDP ratings + comments) ───────────────────────────────────── */
+
+/**
+ * Reading is open to guests so the ratings show before sign-in;
+ * optionalAuthenticate still attaches the viewer so their own review can be
+ * marked `mine` and offered for editing.
+ */
+router.get(
+  '/:id/reviews',
+  validate({ params: objectIdParam(), query: reviewListQuery }),
+  optionalAuthenticate,
+  reviewController.list,
+);
+
+/**
+ * Writing requires an account that may browse the catalogue at all — which
+ * excludes a pending or rejected wholesale applicant, exactly as it excludes
+ * them from the products themselves.
+ */
+router.post(
+  '/:id/reviews',
+  validate({ params: objectIdParam(), body: upsertReviewSchema }),
+  writeLimiter,
+  authenticate,
+  requirePermission(PERMISSIONS.CATALOG_BROWSE),
+  reviewController.upsert,
+);
+
+router.delete(
+  '/:id/reviews',
+  validate({ params: objectIdParam() }),
+  writeLimiter,
+  authenticate,
+  requirePermission(PERMISSIONS.CATALOG_BROWSE),
+  reviewController.remove,
 );
 
 /* ── Catalog ────────────────────────────────────────────────────────────── */

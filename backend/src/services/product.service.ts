@@ -1,5 +1,6 @@
 import { Category, slugify } from '../models/category.model';
 import * as productRepository from '../repositories/product.repository';
+import * as reviewService from './review.service';
 import type { ProductQuery } from '../repositories/product.repository';
 import {
   serializeProduct,
@@ -43,8 +44,14 @@ export async function listProducts(
     ...query,
     storefront: storefrontFor(viewer),
   });
+
+  // One aggregate for the whole page rather than a query per card.
+  const ratings = await reviewService.summariesFor(
+    result.items.map((item) => item._id.toString()),
+  );
+
   return {
-    items: serializeProducts(result.items, viewer),
+    items: serializeProducts(result.items, viewer, ratings),
     pagination: {
       page: result.page,
       limit: result.limit,
@@ -75,7 +82,8 @@ export async function getProduct(
     throw ApiError.notFound('Product not found');
   }
 
-  return serializeProduct(product, viewer);
+  const rating = await reviewService.summaryFor(product._id.toString());
+  return serializeProduct(product, viewer, { average: rating.average, count: rating.count });
 }
 
 export interface ProductInput {
