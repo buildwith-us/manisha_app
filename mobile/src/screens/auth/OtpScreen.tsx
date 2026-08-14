@@ -102,8 +102,12 @@ export function OtpScreen() {
     navigation.goBack();
   };
 
+  // The code field autofocuses, so the keyboard is already up on arrival and
+  // would otherwise sit over "Verify & continue". No `scroll` alongside it: the
+  // body is flex:1 with the button pinned beneath, and making that scrollable
+  // would break the layout rather than help it.
   return (
-    <Screen tone="plain" edges={['top', 'bottom']}>
+    <Screen tone="plain" edges={['top', 'bottom']} keyboardAvoiding>
       <NavBar onBack={handleBack} />
 
       <View style={styles.body}>
