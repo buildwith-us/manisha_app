@@ -8,7 +8,9 @@ import {
   Row,
   Screen,
   SectionLabel,
+  StatusPill,
 } from '../../components/ui';
+import { Icon } from '../../components/Icon';
 import {
   PERMISSIONS,
   useAppDispatch,
@@ -82,7 +84,16 @@ export function AccountScreen() {
 
   return (
     <Screen>
-      <View style={styles.identity}>
+      {/* The identity block is the obvious thing to tap to edit yourself, so
+          it now is one — previously the only route was the "Profile details"
+          row further down. The tier moves into a pill so it reads as a status
+          rather than as part of the phone number. */}
+      <PressableScale
+        style={styles.identity}
+        onPress={() => navigation.navigate('Profile')}
+        accessibilityRole="button"
+        accessibilityLabel="Profile details"
+      >
         <View style={[styles.avatar, shadowAccent]}>
           <Text style={styles.avatarText}>
             {(user.name ?? user.phone).slice(0, 2).toUpperCase()}
@@ -90,11 +101,13 @@ export function AccountScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{user.name ?? 'Add your name'}</Text>
-          <Text style={styles.phone}>
-            {user.phone} · {tier}
-          </Text>
+          <View style={styles.identityMeta}>
+            <Text style={styles.phone}>{user.phone}</Text>
+            <StatusPill label={tier} tone={tier === 'Wholesale' ? 'accent' : 'neutral'} />
+          </View>
         </View>
-      </View>
+        <Icon name="chevronRight" size={18} color={colors.textDisabled} />
+      </PressableScale>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {!isStaff ? (
@@ -188,6 +201,7 @@ function Stat({ value, label }: { value: number; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  identityMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   identity: {
     flexDirection: 'row',
     alignItems: 'center',

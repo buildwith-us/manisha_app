@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Chip, EmptyState, ErrorBanner, LoadingView, Screen } from '../../components/ui';
+import { Chip, EmptyState, ErrorBanner, LargeTitle, LoadingView, Screen } from '../../components/ui';
 import { Icon } from '../../components/Icon';
 import { ProductCard } from '../../components/ProductCard';
 import { PressableScale, StaggerItem } from '../../components/motion';
@@ -130,11 +130,20 @@ export function CatalogScreen() {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <Text style={styles.greeting}>{user?.name ? `Hello, ${user.name}` : 'Welcome'}</Text>
-
-        <Text style={styles.title}>Collection</Text>
-
+      {/* The header was a hand-rolled copy of LargeTitle — same paddings, same
+          type tokens, but a one-off 6px offset instead of the spacing scale.
+          Using the primitive keeps Home consistent with every other large-title
+          screen, and the count moves up here so it is legible on arrival
+          rather than only after scrolling to the end of the grid. */}
+      <LargeTitle
+        overline={user?.name ? `Hello, ${user.name}` : 'Welcome'}
+        title="Collection"
+        caption={
+          pagination && items.length > 0
+            ? `${pagination.total} piece${pagination.total === 1 ? '' : 's'}`
+            : undefined
+        }
+      >
         <View style={styles.searchRow}>
           <View style={styles.searchField}>
             <Icon name="search" size={17} color={colors.textPlaceholder} />
@@ -175,7 +184,7 @@ export function CatalogScreen() {
             />
           ))}
         </ScrollView>
-      </View>
+      </LargeTitle>
 
       {error ? (
         <View style={styles.bannerWrap}>
@@ -247,9 +256,6 @@ export function CatalogScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg },
-  greeting: { ...typography.footnoteStrong, color: colors.textFaint },
-  title: { ...typography.display, color: colors.text, marginTop: 6 },
 
   searchRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   searchField: {
