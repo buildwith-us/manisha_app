@@ -3,12 +3,12 @@ import { Dimensions, Pressable, ScrollView, Share, StyleSheet, Text, View } from
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Button, EmptyState, LoadingView, Screen } from '../../components/ui';
+import { Button, EmptyState, Screen } from '../../components/ui';
 import { ReviewsSection, Stars } from '../../components/Reviews';
 import { ProductCard } from '../../components/ProductCard';
 import { Icon } from '../../components/Icon';
 import { QuantityStepper } from '../../components/QuantityStepper';
-import { PressableScale } from '../../components/motion';
+import { PressableScale, Skeleton } from '../../components/motion';
 import { productApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { useAppDispatch, useAppSelector, useIsStaff } from '../../store/hooks';
@@ -198,7 +198,21 @@ export function ProductDetailScreen() {
     });
   };
 
-  if (loading) return <LoadingView />;
+  // Mirrors the loaded screen: full-bleed hero, then the title/price block.
+  if (loading) {
+    return (
+      <Screen tone="plain" edges={[]}>
+        <Skeleton height={420} style={styles.heroSkeleton} />
+        <View style={styles.skeletonBody}>
+          <Skeleton height={13} width="25%" />
+          <Skeleton height={26} width="70%" style={{ marginTop: spacing.md }} />
+          <Skeleton height={22} width="35%" style={{ marginTop: spacing.md }} />
+          <Skeleton height={14} width="90%" style={{ marginTop: spacing.xl }} />
+          <Skeleton height={14} width="80%" style={{ marginTop: spacing.sm }} />
+        </View>
+      </Screen>
+    );
+  }
   if (error || !product) {
     return (
       <Screen tone="plain">
@@ -463,6 +477,8 @@ export function ProductDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  heroSkeleton: { borderRadius: 0 },
+  skeletonBody: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
   content: { paddingBottom: spacing.xl },
 
   hero: { height: HERO_HEIGHT, backgroundColor: colors.background },

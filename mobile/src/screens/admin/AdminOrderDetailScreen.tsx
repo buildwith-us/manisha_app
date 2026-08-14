@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { PressableScale } from '../../components/motion';
+import { BlockSkeleton, PressableScale } from '../../components/motion';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import {
   Button,
   EmptyState,
   Group,
-  LoadingView,
   NavBar,
   Row,
   Screen,
@@ -95,7 +94,17 @@ export function AdminOrderDetailScreen() {
     );
   };
 
-  if (loading) return <LoadingView />;
+  // Keeps the nav bar: a bare LoadingView left no way back while it loaded.
+  if (loading) {
+    return (
+      <Screen edges={['top']}>
+        <NavBar onBack={() => navigation.goBack()} />
+        <BlockSkeleton rows={3} />
+        <BlockSkeleton rows={2} />
+        <BlockSkeleton rows={3} />
+      </Screen>
+    );
+  }
   if (!order) {
     return (
       <Screen edges={['top']}>

@@ -18,7 +18,6 @@ import {
   Group,
   ImageSlots,
   KeyboardAwareScrollView,
-  LoadingView,
   Row,
   Screen,
   SectionLabel,
@@ -28,7 +27,7 @@ import {
   Toggle,
 } from '../../components/ui';
 import { Icon } from '../../components/Icon';
-import { PressableScale } from '../../components/motion';
+import { BlockSkeleton, PressableScale } from '../../components/motion';
 import { productApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { PERMISSIONS, useAppSelector, usePermission } from '../../store/hooks';
@@ -237,7 +236,14 @@ export function AdminProductFormScreen() {
     ]);
   };
 
-  if (loading) return <LoadingView />;
+  if (loading) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <BlockSkeleton rows={4} />
+        <BlockSkeleton rows={3} />
+      </Screen>
+    );
+  }
 
   const categoryName = categoryOptions.find((option) => option.id === category)?.name;
 

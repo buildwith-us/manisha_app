@@ -3,7 +3,8 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Button, LoadingView, Screen } from '../../components/ui';
+import { Button, Screen } from '../../components/ui';
+import { BlockSkeleton } from '../../components/motion';
 import { Icon } from '../../components/Icon';
 import { orderApi } from '../../api/endpoints';
 import { colors, radius, shadow, shadowAccent, spacing, typography } from '../../theme';
@@ -30,7 +31,14 @@ export function OrderConfirmationScreen() {
       .catch(() => setOrder(null));
   }, [params.orderId]);
 
-  if (!order) return <LoadingView label="Confirming your order…" />;
+  if (!order) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <BlockSkeleton rows={2} />
+        <BlockSkeleton rows={3} />
+      </Screen>
+    );
+  }
 
   const pieces = order.items.reduce((sum, item) => sum + item.quantity, 0);
   const thumbs = order.items.filter((item) => item.image).slice(0, 3);

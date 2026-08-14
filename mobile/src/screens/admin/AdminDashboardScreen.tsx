@@ -6,13 +6,13 @@ import {
   ErrorBanner,
   Group,
   ListRow,
-  LoadingView,
   Row,
   Screen,
   SectionLabel,
   StatCard,
 } from '../../components/ui';
 import { adminApi } from '../../api/endpoints';
+import { BlockSkeleton, Skeleton } from '../../components/motion';
 import { ApiError } from '../../api/client';
 import { PERMISSIONS, useAppSelector, usePermission } from '../../store/hooks';
 import { colors, spacing, typography } from '../../theme';
@@ -57,7 +57,24 @@ export function AdminDashboardScreen() {
     }, [load]),
   );
 
-  if (loading && !summary) return <LoadingView label="Loading your store…" />;
+  // The dashboard is a 2x2 stat grid over a list, so the placeholder is too —
+  // a generic block here would promise the wrong shape.
+  if (loading && !summary) {
+    return (
+      <Screen>
+        <View style={styles.header}>
+          <Skeleton height={12} width="35%" />
+          <Skeleton height={30} width="55%" style={{ marginTop: spacing.sm }} />
+        </View>
+        <View style={styles.statGrid}>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} height={110} style={styles.statSkeleton} />
+          ))}
+        </View>
+        <BlockSkeleton rows={3} />
+      </Screen>
+    );
+  }
 
   const pendingApprovals = summary?.pendingWholesaleApprovals ?? 0;
   const awaitingPacking = summary?.ordersByStatus?.placed ?? 0;
@@ -197,6 +214,7 @@ export function AdminDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  statSkeleton: { width: '48%' },
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.lg },
   overline: { ...typography.footnoteStrong, color: colors.textFaint },
   title: { ...typography.display, fontSize: 30, color: colors.text, marginTop: spacing.sm },

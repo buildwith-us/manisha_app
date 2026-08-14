@@ -58,18 +58,27 @@ export function PressableScale({
   scaleTo = motion.pressScale,
   disabled,
   ...rest
-}: PressableProps & {
+}: Omit<PressableProps, 'style'> & {
   children: ReactNode;
-  style?: StyleProp<ViewStyle>;
+  /**
+   * Accepts Pressable's function form as well as a plain style. Passing the
+   * function straight through put a function inside a style array, which React
+   * Native discards silently — the element kept its handlers but lost every
+   * style it had, so cards collapsed and overflowed. It is resolved here
+   * instead.
+   */
+  style?: StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>);
   /** Override for small circular controls, which need a little more. */
   scaleTo?: number;
 }) {
   const reduceMotion = useReduceMotion();
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(1)).current;
+  const [isPressed, setIsPressed] = useState(false);
 
   const animate = useCallback(
     (pressed: boolean) => {
+      setIsPressed(pressed);
       const duration = pressed ? motion.duration.press : motion.duration.fast;
       Animated.parallel([
         Animated.timing(scale, {
@@ -95,6 +104,8 @@ export function PressableScale({
     ? { opacity }
     : { opacity, transform: [{ scale }] };
 
+  const resolvedStyle = typeof style === 'function' ? style({ pressed: isPressed }) : style;
+
   return (
     // The Pressable itself is animated rather than an inner wrapper: an extra
     // view would sit between the Pressable and its children and quietly change
@@ -103,7 +114,7 @@ export function PressableScale({
       disabled={disabled}
       onPressIn={disabled ? undefined : () => animate(true)}
       onPressOut={disabled ? undefined : () => animate(false)}
-      style={[style, disabled ? null : animatedStyle]}
+      style={[resolvedStyle, disabled ? null : animatedStyle]}
       {...rest}
     >
       {children}
