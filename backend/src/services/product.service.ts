@@ -10,6 +10,20 @@ import { ApiError } from '../utils/ApiError';
 import { PERMISSIONS } from '../utils/rbac';
 import type { AuthenticatedUser } from '../types';
 
+/**
+ * Which storefront a viewer browses (PRD 4.2 / 4.7).
+ *
+ * Staff and admin get 'all' so the management list still shows every product
+ * whatever its visibility. A pending or rejected wholesale applicant is not an
+ * approved buyer, so they see the retail storefront.
+ */
+function storefrontFor(viewer?: AuthenticatedUser | null): 'retail' | 'wholesale' | 'all' {
+  if (viewer?.accountType === 'admin' || viewer?.accountType === 'staff') return 'all';
+  return viewer?.accountType === 'wholesale' && viewer.wholesaleStatus === 'approved'
+    ? 'wholesale'
+    : 'retail';
+}
+
 export interface ProductListResult {
   items: SerializedProduct[];
   pagination: {
@@ -25,7 +39,10 @@ export async function listProducts(
   query: ProductQuery,
   viewer?: AuthenticatedUser | null,
 ): Promise<ProductListResult> {
-  const result = await productRepository.findPaginated(query);
+  const result = await productRepository.findPaginated({
+    ...query,
+    storefront: storefrontFor(viewer),
+  });
   return {
     items: serializeProducts(result.items, viewer),
     pagination: {
@@ -50,6 +67,14 @@ export async function getProduct(
   const isStaff = viewer?.accountType === 'admin' || viewer?.accountType === 'staff';
   if (!product.isActive && !isStaff) throw ApiError.notFound('Product not found');
 
+  // Same rule as the list, applied again here: without it a shared link would
+  // reach a product the viewer's storefront excludes.
+  const storefront = storefrontFor(viewer);
+  const visibility = product.visibility ?? 'both';
+  if (storefront !== 'all' && visibility !== 'both' && visibility !== storefront) {
+    throw ApiError.notFound('Product not found');
+  }
+
   return serializeProduct(product, viewer);
 }
 
@@ -64,6 +89,7 @@ export interface ProductInput {
   sku?: string;
   tags?: string[];
   isActive?: boolean;
+  visibility?: 'both' | 'retail' | 'wholesale';
 }
 
 async function assertCategoryExists(categoryId: string): Promise<void> {

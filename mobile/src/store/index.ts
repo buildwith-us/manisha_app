@@ -2,7 +2,6 @@ import { configureStore } from '@reduxjs/toolkit';
 import { setSessionExpiredHandler } from '../api/client';
 import authReducer, { sessionExpired } from './slices/authSlice';
 import cartReducer, { resetCart } from './slices/cartSlice';
-import notificationReducer, { resetNotifications } from './slices/notificationSlice';
 import productReducer, { clearCatalog } from './slices/productSlice';
 
 /**
@@ -15,19 +14,17 @@ export const store = configureStore({
     auth: authReducer,
     product: productReducer,
     cart: cartReducer,
-    notification: notificationReducer,
   },
 });
 
 /**
  * When the Axios interceptor gives up on refreshing, wipe every slice holding
  * account-scoped data so the next sign-in cannot inherit the old user's cart
- * or notifications.
+ * or catalogue.
  */
 setSessionExpiredHandler(() => {
   store.dispatch(sessionExpired());
   store.dispatch(resetCart());
-  store.dispatch(resetNotifications());
   store.dispatch(clearCatalog());
 });
 

@@ -28,6 +28,8 @@ export interface SerializedProduct {
   sku?: string;
   tags: string[];
   isActive: boolean;
+  /** Which storefront this product appears in. */
+  visibility: 'both' | 'retail' | 'wholesale';
   createdAt: string;
   updatedAt: string;
 }
@@ -72,6 +74,7 @@ export function serializeProduct(
     ...(product.sku ? { sku: product.sku } : {}),
     tags: product.tags ?? [],
     isActive: product.isActive,
+    visibility: product.visibility ?? 'both',
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
   };

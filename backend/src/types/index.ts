@@ -26,9 +26,6 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
-export const NOTIFICATION_AUDIENCES = ['all', 'retail', 'wholesale', 'user'] as const;
-export type NotificationAudience = (typeof NOTIFICATION_AUDIENCES)[number];
-
 /** Valid forward transitions for the order lifecycle (PRD 4.5). */
 export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   placed: ['processing', 'cancelled'],

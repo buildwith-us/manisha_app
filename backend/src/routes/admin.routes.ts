@@ -7,7 +7,6 @@ import { writeLimiter } from '../middleware/rateLimiter';
 import { validate } from '../middleware/validate';
 import { objectIdParam } from '../validators/common';
 import {
-  broadcastSchema,
   reviewWholesaleSchema,
   setActiveSchema,
   setRoleSchema,
@@ -89,16 +88,6 @@ router.patch(
   writeLimiter,
   requirePermission(PERMISSIONS.USER_MANAGE),
   adminController.setActive,
-);
-
-/* ── Push composer — admin only (PRD 4.7) ───────────────────────────────── */
-
-router.post(
-  '/notifications',
-  validate({ body: broadcastSchema }),
-  writeLimiter,
-  requirePermission(PERMISSIONS.NOTIFICATION_BROADCAST),
-  adminController.sendNotification,
 );
 
 export default router;

@@ -3,12 +3,10 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  CountBadge,
   Group,
   Row,
   Screen,
   SectionLabel,
-  Toggle,
 } from '../../components/ui';
 import {
   PERMISSIONS,
@@ -18,8 +16,6 @@ import {
   usePermission,
 } from '../../store/hooks';
 import { applyForWholesale, refreshProfile, signOut } from '../../store/slices/authSlice';
-import { setPermission, setPushToken } from '../../store/slices/notificationSlice';
-import { registerForPush } from '../../utils/push';
 import { colors, radius, shadow, shadowAccent, spacing, typography } from '../../theme';
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -35,12 +31,9 @@ export function AccountScreen() {
   const dispatch = useAppDispatch();
 
   const user = useAppSelector((state) => state.auth.user);
-  const unread = useAppSelector((state) => state.notification.unread);
-  const pushPermission = useAppSelector((state) => state.notification.permission);
   const orderCount = useAppSelector((state) => state.cart.orders.length);
   const savedCount = useAppSelector((state) => state.product.wishlistIds.length);
   const isStaff = useIsStaff();
-  const canBroadcast = usePermission(PERMISSIONS.NOTIFICATION_BROADCAST);
   const canManageUsers = usePermission(PERMISSIONS.USER_MANAGE);
   const canManageCategories = usePermission(PERMISSIONS.CATEGORY_MANAGE);
 
@@ -49,23 +42,6 @@ export function AccountScreen() {
   useEffect(() => {
     void dispatch(refreshProfile());
   }, [dispatch]);
-
-  const handlePushToggle = async (enabled: boolean) => {
-    if (!enabled) {
-      dispatch(setPermission('denied'));
-      return;
-    }
-    const token = await registerForPush();
-    dispatch(setPushToken(token));
-    dispatch(setPermission(token ? 'granted' : 'denied'));
-
-    if (!token) {
-      Alert.alert(
-        'Notifications unavailable',
-        'Enable notifications for Manisha Fashions in your device settings. Note that push requires a development build, not Expo Go.',
-      );
-    }
-  };
 
   const handleApplyWholesale = () => {
     Alert.alert(
@@ -144,13 +120,6 @@ export function AccountScreen() {
                 onPress={() => navigation.navigate('Addresses')}
               />
             ) : null}
-            <Row
-              icon="bell"
-              label="Notifications"
-              onPress={() => navigation.navigate('Notifications')}
-              right={unread > 0 ? <CountBadge count={unread} /> : undefined}
-              chevron={unread === 0}
-            />
             {!isStaff ? (
               <Row
                 icon="package"
@@ -172,14 +141,6 @@ export function AccountScreen() {
                   label="Categories"
                   chevron
                   onPress={() => navigation.navigate('AdminCategories')}
-                />
-              ) : null}
-              {canBroadcast ? (
-                <Row
-                  icon="send"
-                  label="Send a notification"
-                  chevron
-                  onPress={() => navigation.navigate('AdminNotify')}
                 />
               ) : null}
               {canManageUsers ? (
@@ -207,18 +168,6 @@ export function AccountScreen() {
             </Group>
           </View>
         ) : null}
-
-        <View style={styles.block}>
-          <Group>
-            <Row
-              label="Push notifications"
-              detail="Order updates and offers"
-              right={
-                <Toggle value={pushPermission === 'granted'} onValueChange={handlePushToggle} />
-              }
-            />
-          </Group>
-        </View>
 
         <Pressable onPress={handleSignOut} style={styles.logOut} accessibilityRole="button">
           <Text style={styles.logOutLabel}>Log out</Text>

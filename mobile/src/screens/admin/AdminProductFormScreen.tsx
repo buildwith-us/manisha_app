@@ -23,6 +23,7 @@ import {
   Row,
   Screen,
   SectionLabel,
+  Segmented,
   SelectRow,
   SplitRow,
   Toggle,
@@ -34,7 +35,7 @@ import { PERMISSIONS, useAppSelector, usePermission } from '../../store/hooks';
 import { colors, radius, spacing, typography } from '../../theme';
 import { paiseToRupeeInput, rupeesToPaise } from '../../utils/money';
 import type { RootStackParamList } from '../../navigation/types';
-import type { Category } from '../../api/types';
+import type { Category, ProductVisibility } from '../../api/types';
 
 type Route = RouteProp<RootStackParamList, 'AdminProductForm'>;
 
@@ -79,6 +80,7 @@ export function AdminProductFormScreen() {
   const [tags, setTags] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [visibility, setVisibility] = useState<ProductVisibility>('both');
 
   useEffect(() => {
     productApi
@@ -105,6 +107,7 @@ export function AdminProductFormScreen() {
         setTags(product.tags.join(', '));
         setImages(product.images);
         setIsActive(product.isActive);
+        setVisibility(product.visibility ?? 'both');
       })
       .catch((caught: unknown) => {
         setError(caught instanceof ApiError ? caught.message : 'Could not load this product.');
@@ -187,6 +190,7 @@ export function AdminProductFormScreen() {
           sku: sku.trim() || undefined,
           tags: tagList,
           isActive,
+          visibility,
           // Price fields are only sent when this account may change them —
           // sending them as staff would be a guaranteed 403.
           ...(canManagePrice ? { retailPrice: retailPaise, wholesalePrice: wholesalePaise } : {}),
@@ -203,6 +207,7 @@ export function AdminProductFormScreen() {
           sku: sku.trim() || undefined,
           tags: tagList,
           isActive,
+          visibility,
         });
       }
       navigation.goBack();
@@ -366,6 +371,31 @@ export function AdminProductFormScreen() {
               />
             </Group>
 
+            {/* Deliberately separate from "Visible in shop": that takes a
+                product off sale entirely, this decides which customers see it
+                while it is on sale. */}
+            <SectionLabel>Sell to</SectionLabel>
+            <Group>
+              <View style={styles.storefrontRow}>
+                <Segmented
+                  value={visibility}
+                  onChange={setVisibility}
+                  options={[
+                    { value: 'both', label: 'Everyone' },
+                    { value: 'retail', label: 'Retail' },
+                    { value: 'wholesale', label: 'Trade' },
+                  ]}
+                />
+                <Text style={styles.storefrontHint}>
+                  {visibility === 'both'
+                    ? 'Shown to retail customers and approved trade buyers.'
+                    : visibility === 'retail'
+                      ? 'Retail customers only — hidden from approved trade buyers.'
+                      : 'Approved trade buyers only — hidden from retail customers.'}
+                </Text>
+              </View>
+            </Group>
+
             {!canManagePrice ? (
               <Text style={styles.permissionNote}>
                 Only an admin can change pricing. Everything else on this form is yours to edit.
@@ -518,6 +548,8 @@ const styles = StyleSheet.create({
   rupee: { fontSize: 19, fontWeight: '500', color: colors.text },
   priceInput: { flex: 1, fontSize: 19, fontWeight: '500', color: colors.text, paddingVertical: 0 },
   tradeInk: { color: colors.primary },
+  storefrontRow: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, gap: spacing.sm },
+  storefrontHint: { ...typography.footnote, color: colors.textFaint },
   permissionNote: { ...typography.footnote, color: colors.warning, marginTop: spacing.md },
 
   footer: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xl },

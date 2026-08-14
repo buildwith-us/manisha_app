@@ -131,7 +131,14 @@ async function main(): Promise<void> {
     check('retail signup issues an access token', Boolean(retail.accessToken));
     check('retail account type is retail', retail.user.accountType === 'retail', retail.user);
 
-    const noToken = await call('GET', '/products');
+    // Catalog reads are open to signed-out guests (guest-first entry): the
+    // serializer treats an absent viewer as retail and strips wholesalePrice,
+    // so browsing without a token is allowed by design.
+    const guestBrowse = await call('GET', '/products');
+    check('a signed-out guest can browse the catalogue', guestBrowse.status === 200, guestBrowse.body);
+
+    // Guest access is read-only — anything behind a real permission still 401s.
+    const noToken = await call('GET', '/cart');
     check('protected route without a token returns 401', noToken.status === 401, noToken.body);
 
     /* ── Admin + catalog ──────────────────────────────────────────────── */

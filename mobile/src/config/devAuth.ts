@@ -60,7 +60,6 @@ const ADMIN_PERMISSIONS = [
   'dashboard:view',
   'product:price:manage',
   'wholesale:approve',
-  'notification:broadcast',
   'user:manage',
   'order:read:own',
   'cart:manage',

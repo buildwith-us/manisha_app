@@ -17,6 +17,14 @@ export interface IProduct extends Document<Types.ObjectId> {
   sku?: string;
   tags: string[];
   isActive: boolean;
+  /**
+   * Which storefront the product appears in (PRD 4.2 / 4.7).
+   *
+   * Separate from `isActive`: a hidden product is off sale entirely, whereas
+   * this decides *who* sees a product that is on sale. Staff and admin always
+   * see everything regardless.
+   */
+  visibility: 'both' | 'retail' | 'wholesale';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +49,14 @@ const productSchema = new Schema<IProduct>(
     sku: { type: String, trim: true, uppercase: true, sparse: true },
     tags: { type: [String], default: [], index: true },
     isActive: { type: Boolean, default: true },
+    // Defaults to 'both' so every product created before this field existed
+    // keeps showing in both storefronts.
+    visibility: {
+      type: String,
+      enum: ['both', 'retail', 'wholesale'],
+      default: 'both',
+      required: true,
+    },
   },
   { timestamps: true },
 );
@@ -48,8 +64,8 @@ const productSchema = new Schema<IProduct>(
 // Search bar — product name / keyword search (PRD 4.2).
 productSchema.index({ name: 'text', description: 'text', tags: 'text' });
 // Catalog browse + filter/sort paths (PRD 4.2).
-productSchema.index({ isActive: 1, category: 1, retailPrice: 1 });
-productSchema.index({ isActive: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, visibility: 1, category: 1, retailPrice: 1 });
+productSchema.index({ isActive: 1, visibility: 1, createdAt: -1 });
 // Low-stock dashboard widget (PRD 4.7).
 productSchema.index({ stock: 1 });
 

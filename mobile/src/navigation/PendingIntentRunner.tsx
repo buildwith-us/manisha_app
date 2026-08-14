@@ -44,9 +44,6 @@ export function PendingIntentRunner() {
           navigationRef.navigate('CustomerTabs', { screen: intent.tab });
         }
         break;
-      case 'openNotifications':
-        if (navigationRef.isReady()) navigationRef.navigate('Notifications');
-        break;
       case 'checkout':
         if (navigationRef.isReady()) navigationRef.navigate('Checkout');
         break;

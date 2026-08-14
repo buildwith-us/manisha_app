@@ -1,7 +1,6 @@
 import { del, get, getPaged, patch, post } from './client';
 import type {
   Address,
-  AppNotification,
   AuthResult,
   Cart,
   Category,
@@ -12,6 +11,7 @@ import type {
   Pagination,
   Product,
   ProductFilters,
+  ProductVisibility,
   User,
   WholesaleStatus,
 } from './types';
@@ -71,10 +71,6 @@ export const authApi = {
   updateAddress: (id: string, input: Partial<Omit<Address, 'id'>>) =>
     patch<Address[]>(`/auth/addresses/${id}`, input),
   deleteAddress: (id: string) => del<Address[]>(`/auth/addresses/${id}`),
-
-  registerDevice: (input: { token: string; platform: 'android' | 'ios'; deviceId?: string }) =>
-    post<{ message: string }>('/auth/devices', input),
-  unregisterDevice: (token: string) => del<{ message: string }>('/auth/devices', { token }),
 };
 
 /* ── Catalog (PRD 4.2) ──────────────────────────────────────────────────── */
@@ -99,6 +95,7 @@ export const productApi = {
     sku?: string;
     tags?: string[];
     isActive?: boolean;
+    visibility?: ProductVisibility;
   }) => post<Product>('/products', input),
 
   update: (
@@ -114,6 +111,7 @@ export const productApi = {
       sku: string;
       tags: string[];
       isActive: boolean;
+      visibility: ProductVisibility;
     }>,
   ) => patch<Product>(`/products/${id}`, input),
 
@@ -132,8 +130,16 @@ export const productApi = {
       form.append('images', file as unknown as Blob);
     });
 
+    // Content-Type is deliberately cleared, not set.
+    //
+    // A multipart body can only be parsed with the `boundary=...` parameter
+    // React Native generates from the FormData. Sending a bare
+    // "multipart/form-data" suppressed it, and every upload died server-side
+    // with 500 "Multipart: Boundary not found" before reaching Cloudinary.
+    // Clearing it drops the client's JSON default so the runtime writes the
+    // complete header, boundary included.
     return post<UploadedImage[]>('/products/images', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
       timeout: 60_000,
     });
   },
@@ -184,17 +190,6 @@ export const orderApi = {
   cancel: (id: string, reason?: string) => post<Order>(`/orders/${id}/cancel`, { reason }),
 };
 
-/* ── Notifications (PRD 4.6) ────────────────────────────────────────────── */
-
-export const notificationApi = {
-  list: (page = 1, limit = 20) =>
-    getPaged<{ items: AppNotification[]; unread: number }>('/notifications', {
-      params: { page, limit },
-    }),
-  markRead: (id: string) => post<{ message: string }>(`/notifications/${id}/read`),
-  markAllRead: () => post<{ message: string }>('/notifications/read-all'),
-};
-
 /* ── Admin panel (PRD 4.7 / 8.9) ────────────────────────────────────────── */
 
 export const adminApi = {
@@ -222,14 +217,6 @@ export const adminApi = {
 
   setActive: (userId: string, isActive: boolean) =>
     patch<User>(`/admin/users/${userId}/active`, { isActive }),
-
-  sendNotification: (input: {
-    audience: 'all' | 'retail' | 'wholesale' | 'user';
-    title: string;
-    body: string;
-    userId?: string;
-    data?: Record<string, string>;
-  }) => post<{ recipients: number; delivered?: number; message: string }>('/admin/notifications', input),
 };
 
 export type { Pagination };

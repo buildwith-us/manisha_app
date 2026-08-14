@@ -18,7 +18,6 @@ export const PERMISSIONS = {
   ORDER_READ_ALL: 'order:read:all',
   ORDER_STATUS_UPDATE: 'order:status:update',
   WHOLESALE_APPROVE: 'wholesale:approve',
-  NOTIFICATION_BROADCAST: 'notification:broadcast',
   USER_MANAGE: 'user:manage',
   DASHBOARD_VIEW: 'dashboard:view',
 } as const;

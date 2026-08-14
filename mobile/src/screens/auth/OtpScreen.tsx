@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { CommonActions, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, ErrorBanner, InfoBanner, NavBar, Screen } from '../../components/ui';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
@@ -61,11 +61,25 @@ export function OtpScreen() {
 
     // Staff and blocked-wholesale accounts swap the whole stack, which unmounts
     // this modal on its own. A retail or approved-wholesale customer stays in
-    // the customer stack, so the Otp + Login modals have to be popped to put
+    // the customer stack, so the Otp + Login modals have to be dismissed to put
     // them back on the screen they came from — with their action replayed by
     // PendingIntentRunner.
-    if (verifyOtp.fulfilled.match(result) && navigation.canGoBack()) {
-      navigation.pop(2);
+    //
+    // The modals are filtered out by name rather than popped by count:
+    // PendingIntentRunner navigates as soon as `status` flips to signedIn,
+    // which happens before this line runs, so a fixed pop(2) raced that
+    // navigation and left the user on the Login screen to dismiss by hand.
+    if (verifyOtp.fulfilled.match(result)) {
+      navigation.dispatch((state) => {
+        const routes = state.routes.filter(
+          (route) => route.name !== 'Login' && route.name !== 'Otp',
+        );
+        // Nothing left to drop, or nothing to do — leave the stack untouched.
+        if (routes.length === 0 || routes.length === state.routes.length) {
+          return CommonActions.reset(state);
+        }
+        return CommonActions.reset({ ...state, routes, index: routes.length - 1 });
+      });
     }
   };
 

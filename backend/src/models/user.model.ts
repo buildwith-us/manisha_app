@@ -19,13 +19,6 @@ export interface IAddress {
   isDefault: boolean;
 }
 
-export interface IFcmToken {
-  token: string;
-  platform: 'android' | 'ios';
-  deviceId?: string;
-  updatedAt: Date;
-}
-
 export interface IUser extends Document<Types.ObjectId> {
   _id: Types.ObjectId;
   phone: string;
@@ -46,7 +39,6 @@ export interface IUser extends Document<Types.ObjectId> {
     reason?: string;
   };
   addresses: Types.DocumentArray<IAddress>;
-  fcmTokens: IFcmToken[];
   isActive: boolean;
   lastLoginAt?: Date;
   createdAt: Date;
@@ -66,16 +58,6 @@ const addressSchema = new Schema<IAddress>(
     isDefault: { type: Boolean, default: false },
   },
   { _id: true },
-);
-
-const fcmTokenSchema = new Schema<IFcmToken>(
-  {
-    token: { type: String, required: true },
-    platform: { type: String, enum: ['android', 'ios'], required: true },
-    deviceId: { type: String },
-    updatedAt: { type: Date, default: Date.now },
-  },
-  { _id: false },
 );
 
 const userSchema = new Schema<IUser>(
@@ -104,7 +86,6 @@ const userSchema = new Schema<IUser>(
       reason: { type: String, trim: true, maxlength: 500 },
     },
     addresses: { type: [addressSchema], default: [] },
-    fcmTokens: { type: [fcmTokenSchema], default: [] },
     isActive: { type: Boolean, default: true },
     lastLoginAt: { type: Date },
   },

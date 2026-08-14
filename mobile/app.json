@@ -24,10 +24,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.POST_NOTIFICATIONS"
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,12 +32,6 @@
     "plugins": [
       "expo-secure-store",
       "expo-image",
-      [
-        "expo-notifications",
-        {
-          "color": "#A6193C"
-        }
-      ],
       [
         "expo-image-picker",
         {
@@ -50,7 +41,7 @@
       "./plugins/withDevCleartext"
     ],
     "extra": {
-      "//": "Point this at your deployed API before building. Leave unset in local dev to use the per-platform localhost default (10.0.2.2 on the Android emulator).",
+      "//": "Point apiUrl at your deployed API before building. Leave unset in local dev to use the per-platform localhost default (10.0.2.2 on the Android emulator).",
       "apiUrl": null
     }
   }

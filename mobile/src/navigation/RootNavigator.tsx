@@ -12,12 +12,10 @@ import { OrderConfirmationScreen } from '../screens/customer/OrderConfirmationSc
 import { OrderDetailScreen } from '../screens/customer/OrderDetailScreen';
 import { AddressesScreen } from '../screens/customer/AddressesScreen';
 import { AddressFormScreen } from '../screens/customer/AddressFormScreen';
-import { NotificationsScreen } from '../screens/shared/NotificationsScreen';
 import { ProfileScreen } from '../screens/shared/ProfileScreen';
 import { AdminProductFormScreen } from '../screens/admin/AdminProductFormScreen';
 import { AdminCategoriesScreen } from '../screens/admin/AdminCategoriesScreen';
 import { AdminOrderDetailScreen } from '../screens/admin/AdminOrderDetailScreen';
-import { AdminNotifyScreen } from '../screens/admin/AdminNotifyScreen';
 import { AdminUsersScreen } from '../screens/admin/AdminUsersScreen';
 import { useAppSelector } from '../store/hooks';
 import { colors, typography } from '../theme';
@@ -93,10 +91,8 @@ export function RootNavigator() {
             />
             <Stack.Screen name="AdminCategories" component={AdminCategoriesScreen} />
             <Stack.Screen name="AdminOrderDetail" component={AdminOrderDetailScreen} />
-            <Stack.Screen name="AdminNotify" component={AdminNotifyScreen} />
             <Stack.Screen name="AdminUsers" component={AdminUsersScreen} />
             <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
-            <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
           </Stack.Group>
         ) : (
@@ -132,7 +128,6 @@ export function RootNavigator() {
               component={AddressFormScreen}
               options={{ presentation: 'modal' }}
             />
-            <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
           </Stack.Group>
         )}

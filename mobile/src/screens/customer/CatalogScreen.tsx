@@ -26,7 +26,6 @@ import {
   toggleWishlist,
 } from '../../store/slices/productSlice';
 import { fetchCart } from '../../store/slices/cartSlice';
-import { fetchNotifications } from '../../store/slices/notificationSlice';
 import { colors, radius, spacing, typography } from '../../theme';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Product } from '../../api/types';
@@ -38,7 +37,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
  * loading via FlatList windowing for smooth scrolling.
  *
  * A large title over a quiet grid: the photographs carry the screen, and the
- * only accent is the unread dot on the bell.
+ * only accent is the price tier badge.
  */
 export function CatalogScreen() {
   const navigation = useNavigation<Nav>();
@@ -59,7 +58,6 @@ export function CatalogScreen() {
     accessBlocked,
   } = useAppSelector((state) => state.product);
   const user = useAppSelector((state) => state.auth.user);
-  const unread = useAppSelector((state) => state.notification.unread);
 
   const [searchText, setSearchText] = useState(filters.search ?? '');
 
@@ -71,7 +69,6 @@ export function CatalogScreen() {
     if (!isSignedIn) return;
     void dispatch(fetchCart());
     void dispatch(fetchWishlist());
-    void dispatch(fetchNotifications());
   }, [dispatch, isSignedIn]);
 
   // Debounce the search box so typing does not fire a request per keystroke.
@@ -134,22 +131,7 @@ export function CatalogScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.greeting}>{user?.name ? `Hello, ${user.name}` : 'Welcome'}</Text>
-          <Pressable
-            onPress={() =>
-              requireAuth({ type: 'openNotifications' }, () =>
-                navigation.navigate('Notifications'),
-              )
-            }
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-          >
-            <Icon name="bell" size={24} color={colors.text} strokeWidth={1.6} />
-            {unread > 0 ? <View style={styles.bellDot} /> : null}
-          </Pressable>
-        </View>
+        <Text style={styles.greeting}>{user?.name ? `Hello, ${user.name}` : 'Welcome'}</Text>
 
         <Text style={styles.title}>Collection</Text>
 
@@ -259,19 +241,7 @@ export function CatalogScreen() {
 
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg },
-  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   greeting: { ...typography.footnoteStrong, color: colors.textFaint },
-  bellDot: {
-    position: 'absolute',
-    top: 1,
-    right: 1,
-    width: 8,
-    height: 8,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
   title: { ...typography.display, color: colors.text, marginTop: 6 },
 
   searchRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },

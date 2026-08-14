@@ -3,7 +3,6 @@ import mongoose from 'mongoose';
 import adminRoutes from './admin.routes';
 import authRoutes from './auth.routes';
 import cartRoutes from './cart.routes';
-import notificationRoutes from './notification.routes';
 import orderRoutes from './order.routes';
 import productRoutes from './product.routes';
 import wishlistRoutes from './wishlist.routes';
@@ -49,7 +48,6 @@ router.use('/products', productRoutes);
 router.use('/cart', cartRoutes);
 router.use('/wishlist', wishlistRoutes);
 router.use('/orders', orderRoutes);
-router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
 
 export default router;

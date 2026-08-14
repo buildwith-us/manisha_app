@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -12,7 +12,6 @@ import {
   SectionLabel,
   StatCard,
 } from '../../components/ui';
-import { Icon } from '../../components/Icon';
 import { adminApi } from '../../api/endpoints';
 import { ApiError } from '../../api/client';
 import { PERMISSIONS, useAppSelector, usePermission } from '../../store/hooks';
@@ -33,7 +32,6 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function AdminDashboardScreen() {
   const navigation = useNavigation<Nav>();
   const user = useAppSelector((state) => state.auth.user);
-  const unread = useAppSelector((state) => state.notification.unread);
   const canApproveWholesale = usePermission(PERMISSIONS.WHOLESALE_APPROVE);
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -69,20 +67,9 @@ export function AdminDashboardScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.overline}>
-            {user?.accountType === 'admin' ? 'Admin' : 'Staff'} · Manisha Fashions
-          </Text>
-          <Pressable
-            onPress={() => navigation.navigate('Notifications')}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-          >
-            <Icon name="bell" size={22} color={colors.text} strokeWidth={1.6} />
-            {unread > 0 ? <View style={styles.bellDot} /> : null}
-          </Pressable>
-        </View>
+        <Text style={styles.overline}>
+          {user?.accountType === 'admin' ? 'Admin' : 'Staff'} · Manisha Fashions
+        </Text>
         <Text style={styles.title}>
           {user?.name ? `Hello, ${user.name}` : 'Today'}
         </Text>
@@ -211,19 +198,7 @@ export function AdminDashboardScreen() {
 
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.lg },
-  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   overline: { ...typography.footnoteStrong, color: colors.textFaint },
-  bellDot: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
   title: { ...typography.display, fontSize: 30, color: colors.text, marginTop: spacing.sm },
 
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl },

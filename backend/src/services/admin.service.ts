@@ -5,7 +5,6 @@ import { serializeProducts } from '../serializers/product.serializer';
 import { serializeUser, type SerializedUser } from '../serializers/user.serializer';
 import { ApiError } from '../utils/ApiError';
 import type { AuthenticatedUser, WholesaleStatus } from '../types';
-import * as notificationService from './notification.service';
 import * as tokenService from './token.service';
 
 const LOW_STOCK_THRESHOLD = 5;
@@ -106,16 +105,6 @@ export async function reviewWholesaleApplication(
   // The user's permission set changes with this decision. Their existing access
   // token still carries the old claims, but authenticate() re-reads the user on
   // every request, so the change takes effect immediately.
-  await notificationService.notifyUser(user._id.toString(), {
-    title: decision === 'approved' ? 'Wholesale account approved' : 'Wholesale application update',
-    body:
-      decision === 'approved'
-        ? 'Your wholesale account is approved. Wholesale pricing is now unlocked.'
-        : `Your wholesale application was not approved.${reason ? ` Reason: ${reason}` : ''} You can re-apply or contact support.`,
-    category: 'wholesale',
-    data: { type: 'wholesale_status', status: decision },
-  });
-
   return serializeUser(user);
 }
 

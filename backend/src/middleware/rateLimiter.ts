@@ -56,7 +56,7 @@ export const generalLimiter = createRateLimiter({
  */
 export const authLimiter = createRateLimiter({
   windowMs: 60_000,
-  limit: 20,
+  limit: env.RATE_LIMIT_AUTH_PER_MIN,
   prefix: 'auth',
   message: 'Too many authentication attempts. Please wait a minute and try again.',
 });

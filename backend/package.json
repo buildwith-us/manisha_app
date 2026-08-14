@@ -14,6 +14,10 @@
     "start": "node dist/server.js",
     "seed": "tsx src/scripts/seed.ts",
     "smoke": "tsx src/scripts/smoke.ts",
+    "audit": "tsx src/scripts/audit.ts",
+    "coverage": "tsx src/scripts/coverage.ts",
+    "make-admin": "tsx src/scripts/makeAdmin.ts",
+    "routes": "tsx src/scripts/routes.ts",
     "typecheck": "tsc --noEmit",
     "seed:demo": "tsx src/scripts/seedProducts.ts",
     "postinstall": "npm run build"

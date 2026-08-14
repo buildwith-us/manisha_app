@@ -10,9 +10,7 @@ import {
   applyWholesaleSchema,
   logoutSchema,
   refreshSchema,
-  registerFcmTokenSchema,
   sendOtpSchema,
-  unregisterFcmTokenSchema,
   updateProfileSchema,
   verifyOtpSchema,
 } from '../validators/auth.validator';
@@ -56,18 +54,5 @@ router.delete(
   authController.deleteAddress,
 );
 
-// ── Device registration for FCM ──
-router.post(
-  '/devices',
-  validate({ body: registerFcmTokenSchema }),
-  authenticate,
-  authController.registerDevice,
-);
-router.delete(
-  '/devices',
-  validate({ body: unregisterFcmTokenSchema }),
-  authenticate,
-  authController.unregisterDevice,
-);
 
 export default router;

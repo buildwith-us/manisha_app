@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 import * as adminService from '../services/admin.service';
-import * as notificationService from '../services/notification.service';
 import { ApiError } from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
 import type { WholesaleStatus } from '../types';
@@ -53,22 +52,3 @@ export const setActive = asyncHandler(async (req: Request, res: Response) => {
   res.success(await adminService.setAccountActive(req.user!, req.params.userId, req.body.isActive));
 });
 
-/* ── Notifications (PRD 4.7 composer) ───────────────────────────────────── */
-
-export const sendNotification = asyncHandler(async (req: Request, res: Response) => {
-  const { audience, title, body, data, userId } = req.body;
-
-  if (audience === 'user') {
-    if (!userId) throw ApiError.badRequest('Select a customer to notify');
-    await notificationService.notifyUser(userId, { title, body, data, category: 'promotion' });
-    res.success({ recipients: 1, message: 'Notification sent.' });
-    return;
-  }
-
-  const result = await notificationService.broadcast(
-    audience,
-    { title, body, data, category: 'promotion' },
-    req.user!.id,
-  );
-  res.success({ ...result, message: 'Notification sent.' });
-});

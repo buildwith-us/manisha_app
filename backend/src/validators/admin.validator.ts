@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ACCOUNT_TYPES, NOTIFICATION_AUDIENCES, WHOLESALE_STATUSES } from '../types';
+import { ACCOUNT_TYPES, WHOLESALE_STATUSES } from '../types';
 import { objectId, paginationQuery } from './common';
 
 export const wholesaleListQuery = paginationQuery.extend({
@@ -25,13 +25,3 @@ export const setActiveSchema = z.object({
   isActive: z.boolean(),
 });
 
-export const broadcastSchema = z.object({
-  audience: z.enum(NOTIFICATION_AUDIENCES).default('all'),
-  title: z.string().trim().min(2).max(120),
-  body: z.string().trim().min(2).max(500),
-  /** Optional deep-link payload, e.g. { type: "product", productId: "..." }. */
-  data: z.record(z.string().max(200)).optional(),
-  userId: objectId.optional(),
-});
-
-export const notificationListQuery = paginationQuery;

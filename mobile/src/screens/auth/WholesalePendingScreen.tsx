@@ -85,7 +85,7 @@ export function WholesalePendingScreen() {
             <TimelineStep title="Admin review" detail="In progress" state="current" />
             <TimelineStep
               title="Wholesale pricing unlocked"
-              detail="You'll get a notification"
+              detail="Sign in again once approved"
               state="pending"
               last
             />

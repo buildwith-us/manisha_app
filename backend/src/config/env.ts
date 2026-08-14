@@ -45,13 +45,16 @@ const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
-
   COD_SHIPPING_CHARGE: z.coerce.number().int().nonnegative().default(5000),
   PREPAID_SHIPPING_CHARGE: z.coerce.number().int().nonnegative().default(0),
   CURRENCY: z.string().default('INR'),
 
   CORS_ORIGINS: z.string().default('').transform(csv),
   RATE_LIMIT_GENERAL_PER_MIN: z.coerce.number().int().positive().default(100),
+  // Auth endpoints keep a tighter ceiling than the rest of the API. Overridable
+  // so an automated run can lift it; the per-phone OTP quota in the OTP service
+  // is the real abuse control and is unaffected by this value.
+  RATE_LIMIT_AUTH_PER_MIN: z.coerce.number().int().positive().default(20),
   TRUST_PROXY: z.string().default('1'),
 
   SEED_ADMIN_PHONE: z.string().default('+919999999999'),

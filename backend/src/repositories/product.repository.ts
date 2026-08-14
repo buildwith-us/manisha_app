@@ -24,6 +24,12 @@ export interface ProductQuery {
   sort: 'newest' | 'price_asc' | 'price_desc' | 'name_asc';
   includeInactive?: boolean;
   inStockOnly?: boolean;
+  /**
+   * Which storefront the viewer is browsing. 'all' (staff and admin) applies no
+   * visibility filter; otherwise only products marked for that storefront —
+   * or for both — are returned.
+   */
+  storefront?: 'retail' | 'wholesale' | 'all';
 }
 
 export interface PaginatedProducts {
@@ -47,6 +53,13 @@ function buildFilter(query: ProductQuery): FilterQuery<IProduct> {
 
   if (!query.includeInactive) filter.isActive = true;
   if (query.category) filter.category = query.category;
+
+  // Retail-only products stay out of the wholesale storefront and vice versa.
+  // Enforced here, in the query, so a product the viewer may not see is never
+  // loaded — not merely hidden after the fact.
+  if (query.storefront && query.storefront !== 'all') {
+    filter.visibility = { $in: ['both', query.storefront] };
+  }
   if (query.inStockOnly) filter.stock = { $gt: 0 };
 
   // Filter by price range always applies to retailPrice: it is the tier every

@@ -36,14 +36,12 @@ export type RootStackParamList = {
   OrderDetail: { orderId: string };
   Addresses: { selectMode?: boolean } | undefined;
   AddressForm: { addressId?: string } | undefined;
-  Notifications: undefined;
   Profile: undefined;
 
   // Admin
   AdminProductForm: { productId?: string } | undefined;
   AdminCategories: undefined;
   AdminOrderDetail: { orderId: string };
-  AdminNotify: undefined;
   AdminUsers: undefined;
 };
 

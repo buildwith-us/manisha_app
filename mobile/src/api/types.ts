@@ -4,6 +4,8 @@ export type OrderStatus = 'placed' | 'processing' | 'shipped' | 'delivered' | 'c
 export type PaymentMethod = 'razorpay' | 'cod';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 export type PriceTier = 'retail' | 'wholesale';
+/** Storefront a product is shown in — 'both' is the default. */
+export type ProductVisibility = 'both' | 'retail' | 'wholesale';
 
 export interface ApiEnvelope<T> {
   success: boolean;
@@ -93,6 +95,8 @@ export interface Product {
   sku?: string;
   tags: string[];
   isActive: boolean;
+  /** Which storefront the product appears in (admin-set). */
+  visibility: ProductVisibility;
   createdAt: string;
   updatedAt: string;
 }
@@ -153,16 +157,6 @@ export interface RazorpayHandle {
 export interface CheckoutResult {
   order: Order;
   payment?: RazorpayHandle;
-}
-
-export interface AppNotification {
-  id: string;
-  title: string;
-  body: string;
-  category: 'order' | 'wholesale' | 'promotion' | 'system';
-  data?: Record<string, string>;
-  read: boolean;
-  createdAt: string;
 }
 
 export interface DashboardSummary {

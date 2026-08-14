@@ -9,7 +9,6 @@ import { effectivePriceFor, priceTierFor } from '../serializers/product.serializ
 import { ApiError } from '../utils/ApiError';
 import { ORDER_STATUS_TRANSITIONS, type OrderStatus, type PaymentMethod } from '../types';
 import type { AuthenticatedUser } from '../types';
-import * as notificationService from './notification.service';
 import * as paymentService from './payment.service';
 
 /* ── Serialization ──────────────────────────────────────────────────────── */
@@ -208,7 +207,6 @@ export async function checkout(
     }
 
     await Cart.updateOne({ userId: viewer.id }, { $set: { items: [] } });
-    await notifyOrderPlaced(order);
     return { order: serializeOrder(order) };
   } catch (error) {
     for (const entry of reserved) {
@@ -216,15 +214,6 @@ export async function checkout(
     }
     throw error;
   }
-}
-
-async function notifyOrderPlaced(order: IOrder): Promise<void> {
-  await notificationService.notifyUser(order.userId.toString(), {
-    title: 'Order placed',
-    body: `Your order ${order.orderNumber} has been placed successfully.`,
-    category: 'order',
-    data: { orderId: order._id.toString(), type: 'order_status' },
-  });
 }
 
 /**
@@ -262,7 +251,6 @@ export async function confirmPayment(
   await order.save();
 
   await Cart.updateOne({ userId: viewer.id }, { $set: { items: [] } });
-  await notifyOrderPlaced(order);
 
   return serializeOrder(order);
 }
@@ -295,7 +283,6 @@ export async function handlePaymentWebhook(event: {
     };
     await order.save();
     await Cart.updateOne({ userId: order.userId }, { $set: { items: [] } });
-    await notifyOrderPlaced(order);
     return;
   }
 
@@ -312,13 +299,6 @@ export async function handlePaymentWebhook(event: {
     order.cancellationReason = 'Payment failed';
     order.statusHistory.push({ status: 'cancelled', at: new Date(), note: 'Payment failed' });
     await order.save();
-
-    await notificationService.notifyUser(order.userId.toString(), {
-      title: 'Payment failed',
-      body: `Payment for order ${order.orderNumber} did not go through. Please try again.`,
-      category: 'order',
-      data: { orderId: order._id.toString(), type: 'order_status' },
-    });
   }
 }
 
@@ -419,23 +399,8 @@ export async function cancelMyOrder(
   order.statusHistory.push({ status: 'cancelled', at: new Date(), note: order.cancellationReason });
   await order.save();
 
-  await notificationService.notifyUser(userId, {
-    title: 'Order cancelled',
-    body: `Your order ${order.orderNumber} has been cancelled.`,
-    category: 'order',
-    data: { orderId: order._id.toString(), type: 'order_status' },
-  });
-
   return serializeOrder(order);
 }
-
-const STATUS_MESSAGES: Record<OrderStatus, string> = {
-  placed: 'has been placed',
-  processing: 'is being prepared',
-  shipped: 'has been shipped',
-  delivered: 'has been delivered',
-  cancelled: 'has been cancelled',
-};
 
 export async function updateOrderStatus(
   actor: AuthenticatedUser,
@@ -462,13 +427,6 @@ export async function updateOrderStatus(
   order.orderStatus = nextStatus;
   order.statusHistory.push({ status: nextStatus, at: new Date(), by: actor.id as never, note });
   await order.save();
-
-  await notificationService.notifyUser(order.userId._id?.toString() ?? order.userId.toString(), {
-    title: `Order ${nextStatus}`,
-    body: `Your order ${order.orderNumber} ${STATUS_MESSAGES[nextStatus]}.`,
-    category: 'order',
-    data: { orderId: order._id.toString(), type: 'order_status' },
-  });
 
   return serializeOrder(order, { includeCustomer: true });
 }

@@ -1,7 +1,6 @@
 import type { Request, Response } from 'express';
 import * as authService from '../services/auth.service';
 import * as addressService from '../services/address.service';
-import * as notificationService from '../services/notification.service';
 import { asyncHandler } from '../utils/asyncHandler';
 
 function loginContext(req: Request) {
@@ -70,19 +69,3 @@ export const deleteAddress = asyncHandler(async (req: Request, res: Response) =>
   res.success(await addressService.deleteAddress(req.user!.id, req.params.id));
 });
 
-/* ── Device tokens ──────────────────────────────────────────────────────── */
-
-export const registerDevice = asyncHandler(async (req: Request, res: Response) => {
-  await notificationService.registerToken(
-    req.user!.id,
-    req.body.token,
-    req.body.platform,
-    req.body.deviceId,
-  );
-  res.success({ message: 'Device registered for notifications.' });
-});
-
-export const unregisterDevice = asyncHandler(async (req: Request, res: Response) => {
-  await notificationService.unregisterToken(req.user!.id, req.body.token);
-  res.success({ message: 'Device unregistered.' });
-});

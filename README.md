@@ -4,7 +4,7 @@ Implementation of **PRD v2.0 (React Native)**. Two packages:
 
 | Package | Stack | What it is |
 | --- | --- | --- |
-| [`backend/`](backend/) | Node.js + Express + TypeScript, MongoDB (Mongoose), Redis | REST API — auth, catalog, cart, orders, payments, push, admin |
+| [`backend/`](backend/) | Node.js + Express + TypeScript, MongoDB (Mongoose) | REST API — auth, catalog, cart, orders, payments, admin |
 | [`mobile/`](mobile/) | Expo SDK 57 + React Native 0.86 + TypeScript, Redux Toolkit, React Navigation | Android + iOS client — customer flow *and* the in-app admin panel |
 
 ---
@@ -14,13 +14,12 @@ Implementation of **PRD v2.0 (React Native)**. Two packages:
 ### 1. Dependencies
 
 ```bash
-# MongoDB + Redis via Docker (or point .env at Atlas / a managed Redis)
+# MongoDB via Docker (or point .env at Atlas)
 docker compose up -d
 ```
 
-No Docker? Install MongoDB locally, or leave `REDIS_URL` blank — the backend
-falls back to an in-process store for OTP and rate-limit counters in
-development (refused in production).
+No Docker? Install MongoDB locally. Redis is not required — OTP and rate-limit
+counters are held in-process.
 
 ### 2. Backend
 
@@ -54,10 +53,9 @@ The app resolves its API base URL in this order:
 3. Platform default — `http://10.0.2.2:4000/api/v1` on the Android emulator,
    `http://localhost:4000/api/v1` elsewhere
 
-> **Expo Go vs development build.** Everything except **remote push** works in
-> Expo Go. `expo-notifications` cannot receive remote push on Android in Expo Go
-> from SDK 53 onward, so run `npx expo run:android` / `run:ios` (or an EAS dev
-> build) to test FCM/APNs end-to-end.
+> **Expo Go.** The whole app runs in Expo Go — there are no native modules
+> requiring a development build. `npx expo run:android` / `run:ios` still works
+> if you prefer a local build.
 
 ---
 
@@ -67,6 +65,7 @@ The app resolves its API base URL in this order:
 cd backend
 npm run typecheck
 npm run smoke
+npm run audit     # wider sweep: every endpoint the app calls, as each role
 ```
 
 `npm run smoke` boots the real Express app against an **in-memory MongoDB** (no
@@ -97,12 +96,10 @@ Everything lives in `backend/.env` (never committed — PRD §8.5). See
 | Group | Keys | Notes |
 | --- | --- | --- |
 | Database | `MONGODB_URI` | MongoDB Atlas M0 is sufficient at launch (PRD §8.2). |
-| Cache | `REDIS_URL` | OTP storage + rate-limit counters. Required in production. |
 | JWT | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL_DAYS` | Long random values. `JWT_REFRESH_TTL_DAYS` is the admin-configurable idle period (default 90 — PRD §4.1). |
 | OTP | `OTP_PROVIDER`, `MSG91_*` | `console` (dev), `msg91` (live). See "OTP providers" below. |
 | Images | `CLOUDINARY_*` | Without these, image upload returns 503; everything else works. |
 | Payments | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Without these only COD is offered — the app hides the online option. |
-| Push | `FIREBASE_SERVICE_ACCOUNT_PATH` or `_JSON` | Without these, notifications are persisted in-app but not pushed. |
 | Commerce | `COD_SHIPPING_CHARGE`, `PREPAID_SHIPPING_CHARGE` | **Integer paise** (`5000` = ₹50). Served to the app via `GET /config`. |
 
 Every integration degrades gracefully: the API boots and reports what is wired
@@ -167,7 +164,7 @@ truth, mirrored (for UI gating only) in
 | Wholesale (approved) | As retail, plus wholesale pricing |
 | Wholesale (pending/rejected) | **Login only** — empty permission set |
 | Staff | Products, categories, order status, dashboard — no pricing, no approvals, no accounts |
-| Admin | Everything, plus pricing, wholesale approvals, broadcasts, staff accounts |
+| Admin | Everything, plus pricing, wholesale approvals, staff accounts |
 
 A pending wholesale applicant's blocked state is enforced twice and
 independently: the API returns 403 `WHOLESALE_NOT_APPROVED`, and
@@ -224,8 +221,7 @@ Base path `/api/v1`. All responses are `{ success, data, meta? }` or
 | `GET/POST/PATCH/DELETE /products`, `/products/categories`, `/products/images` | Catalog + admin CRUD + Cloudinary upload |
 | `GET/POST/PATCH/DELETE /cart`, `/wishlist` | Cart and save-for-later |
 | `POST /orders/checkout`, `/orders/payment/confirm`, `GET /orders`, `POST /orders/:id/cancel` | Checkout and order tracking |
-| `GET /notifications`, `POST /notifications/:id/read` | In-app notification list |
-| `GET /admin/dashboard`, `/admin/orders`, `/admin/wholesale`, `/admin/users`, `POST /admin/notifications` | Admin panel |
+| `GET /admin/dashboard`, `/admin/orders`, `/admin/wholesale`, `/admin/users` | Admin panel |
 | `POST /webhooks/razorpay` | Payment status webhook (HMAC-verified, outside the JWT pipeline) |
 
 ---
@@ -237,9 +233,10 @@ Base path `/api/v1`. All responses are `{ success, data, meta? }` or
    was empty. It is implemented to match §8.2–§8.11 exactly. If a real deployed
    backend exists, reconcile the two before launch — §9 already calls for "a
    single canonical deployment".
-2. **`fcmToken` is an array, not a single field** (§8.2). One customer with a
-   phone and a tablet needs two tokens; a scalar silently drops the older
-   device. Dead tokens are pruned when FCM reports them unregistered.
+2. **Notifications are not built.** §4.6 describes push and an in-app
+   notification list; both were removed at the client's request. Order status
+   changes are visible in the app's order screens instead. Nothing in the
+   schema, API or client references notifications any more.
 3. **Staff cannot *create* products, only edit them.** §8.9 gives staff "product
    management" but "no pricing changes", while §4.7 makes both prices required
    with no auto-derived default. Creation therefore necessarily sets prices, so
@@ -264,8 +261,8 @@ These are wired to be configurable rather than guessed:
   and shown to the approving admin, but not *required*; make them required in
   `auth.validator.ts` if the client wants that
 - **Staff vs Admin split** — implemented as §8.9 recommends; confirm with client
-- **Expo vs bare React Native** — built on Expo (managed, with dev builds for
-  push); `npx expo prebuild` ejects to bare if a native module ever demands it
+- **Expo vs bare React Native** — built on Expo (managed); `npx expo prebuild`
+  ejects to bare if a native module ever demands it
 
 ## Not built (explicitly out of scope, PRD §5)
 

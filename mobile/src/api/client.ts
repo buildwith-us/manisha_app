@@ -17,10 +17,23 @@ import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from './toke
  * (or EXPO_PUBLIC_API_URL) to point at a deployed backend.
  */
 function resolveBaseUrl(): string {
-  const configured =
-    (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ??
-    process.env.EXPO_PUBLIC_API_URL;
-  if (configured) return configured;
+  // Only a non-empty string counts as configured.
+  //
+  // `"apiUrl": null` in app.json does NOT arrive here as null — Expo serialises
+  // it into the manifest and it reads back as `{}`. An empty object is neither
+  // nullish (so `??` will not fall through to the env var) nor falsy (so a
+  // plain truthiness check accepts it), which previously made API_BASE_URL the
+  // object itself. Axios then had a garbage baseURL and every request failed
+  // with a network error, on emulator and device alike.
+  const candidates: unknown[] = [
+    (Constants.expoConfig?.extra as { apiUrl?: unknown } | undefined)?.apiUrl,
+    process.env.EXPO_PUBLIC_API_URL,
+  ];
+
+  const configured = candidates.find(
+    (value): value is string => typeof value === 'string' && value.trim().length > 0,
+  );
+  if (configured) return configured.trim();
 
   const host = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
   return `http://${host}:4000/api/v1`;

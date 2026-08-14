@@ -31,6 +31,8 @@ export const createProductSchema = z
     sku: z.string().trim().max(40).optional(),
     tags: z.array(z.string().trim().min(1).max(30)).max(20).default([]),
     isActive: z.boolean().default(true),
+    // Which storefront the product appears in (PRD 4.2 / 4.7).
+    visibility: z.enum(['both', 'retail', 'wholesale']).default('both'),
   })
   .refine((data) => data.wholesalePrice <= data.retailPrice, {
     message: 'Wholesale price should not be higher than retail price',
@@ -49,6 +51,7 @@ export const updateProductSchema = z
     sku: z.string().trim().max(40).optional(),
     tags: z.array(z.string().trim().min(1).max(30)).max(20).optional(),
     isActive: z.boolean().optional(),
+    visibility: z.enum(['both', 'retail', 'wholesale']).optional(),
   })
   .refine(
     (data) =>

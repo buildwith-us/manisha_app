@@ -60,14 +60,4 @@ export const addressSchema = z.object({
 
 export const addressUpdateSchema = addressSchema.partial();
 
-export const registerFcmTokenSchema = z.object({
-  token: z.string().min(10),
-  platform: z.enum(['android', 'ios']),
-  deviceId: z.string().max(120).optional(),
-});
-
-export const unregisterFcmTokenSchema = z.object({
-  token: z.string().min(10),
-});
-
 export const userIdParam = z.object({ userId: objectId });
