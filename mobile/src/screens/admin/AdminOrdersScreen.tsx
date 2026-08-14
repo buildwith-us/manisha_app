@@ -16,6 +16,7 @@ import {
   Divider,
   EmptyState,
   ErrorBanner,
+  LargeTitle,
   ListRow,
   LoadingView,
   Screen,
@@ -101,9 +102,7 @@ export function AdminOrdersScreen() {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <Text style={styles.overline}>Admin</Text>
-        <Text style={styles.title}>Orders</Text>
+      <LargeTitle overline="Admin" title="Orders">
 
         <View style={styles.searchField}>
           <Icon name="search" size={17} color={colors.textPlaceholder} />
@@ -134,7 +133,7 @@ export function AdminOrdersScreen() {
             />
           ))}
         </ScrollView>
-      </View>
+      </LargeTitle>
 
       {error ? (
         <View style={styles.bannerWrap}>
@@ -209,9 +208,6 @@ export function AdminOrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.md },
-  overline: { ...typography.footnoteStrong, color: colors.textFaint },
-  title: { ...typography.display, fontSize: 30, color: colors.text, marginTop: 6 },
 
   searchField: {
     flexDirection: 'row',

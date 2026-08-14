@@ -17,6 +17,7 @@ import {
   Chip,
   EmptyState,
   ErrorBanner,
+  LargeTitle,
   LoadingView,
   Screen,
   Segmented,
@@ -102,9 +103,7 @@ export function AdminWholesaleScreen() {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <Text style={styles.overline}>Admin</Text>
-        <Text style={styles.title}>Wholesale</Text>
+      <LargeTitle overline="Admin" title="Wholesale">
         <Segmented
           options={TABS}
           value={status}
@@ -114,7 +113,7 @@ export function AdminWholesaleScreen() {
           }}
           style={{ marginTop: spacing.lg }}
         />
-      </View>
+      </LargeTitle>
 
       {loading && applications.length === 0 ? (
         <LoadingView variant="list" />
@@ -346,9 +345,6 @@ function RejectSheet({
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.md },
-  overline: { ...typography.footnoteStrong, color: colors.textFaint },
-  title: { ...typography.display, fontSize: 30, color: colors.text, marginTop: 6 },
 
   list: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl, gap: spacing.lg },
 

@@ -14,6 +14,7 @@ import {
   EmptyState,
   ErrorBanner,
   Group,
+  LargeTitle,
   LoadingView,
   NavBar,
   Screen,
@@ -136,9 +137,7 @@ export function AdminUsersScreen() {
     <Screen edges={['top']}>
       <NavBar onBack={() => navigation.goBack()} />
 
-      <View style={styles.header}>
-        <Text style={styles.overline}>Admin only</Text>
-        <Text style={styles.title}>Accounts</Text>
+      <LargeTitle overline="Admin only" title="Accounts">
 
         <View style={styles.searchField}>
           <Icon name="search" size={17} color={colors.textPlaceholder} />
@@ -171,7 +170,7 @@ export function AdminUsersScreen() {
             />
           ))}
         </ScrollView>
-      </View>
+      </LargeTitle>
 
       {loading && users.length === 0 ? (
         <LoadingView variant="list" />
@@ -254,9 +253,6 @@ export function AdminUsersScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.xl, paddingBottom: spacing.md },
-  overline: { ...typography.footnoteStrong, color: colors.textFaint },
-  title: { ...typography.display, fontSize: 30, color: colors.text, marginTop: 6 },
 
   searchField: {
     flexDirection: 'row',

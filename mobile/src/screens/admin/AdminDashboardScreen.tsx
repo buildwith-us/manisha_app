@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ErrorBanner,
   Group,
+  LargeTitle,
   ListRow,
   Row,
   Screen,
@@ -83,14 +84,10 @@ export function AdminDashboardScreen() {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <Text style={styles.overline}>
-          {user?.accountType === 'admin' ? 'Admin' : 'Staff'} · Manisha Fashions
-        </Text>
-        <Text style={styles.title}>
-          {user?.name ? `Hello, ${user.name}` : 'Today'}
-        </Text>
-      </View>
+      <LargeTitle
+        overline={`${user?.accountType === 'admin' ? 'Admin' : 'Staff'} · Manisha Fashions`}
+        title={user?.name ? `Hello, ${user.name}` : 'Today'}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -216,8 +213,6 @@ export function AdminDashboardScreen() {
 const styles = StyleSheet.create({
   statSkeleton: { width: '48%' },
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.lg },
-  overline: { ...typography.footnoteStrong, color: colors.textFaint },
-  title: { ...typography.display, fontSize: 30, color: colors.text, marginTop: spacing.sm },
 
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
