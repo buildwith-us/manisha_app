@@ -27,6 +27,16 @@ const envSchema = z.object({
   JWT_REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(90),
 
   OTP_PROVIDER: z.enum(['console', 'msg91']).default('console'),
+  /**
+   * ⚠️ TEST NUMBERS — the only phones allowed to use the console OTP provider
+   * in production, and the only ones whose code is returned in the API
+   * response. Everyone else is refused until a real SMS provider is set up.
+   *
+   * Anyone who knows a number on this list can sign in as it, so keep it to
+   * handsets you control and empty it once MSG91 is live. Comma-separated,
+   * E.164 or bare 10-digit; overrides the built-in default when set.
+   */
+  OTP_TEST_PHONES: z.string().default('').transform(csv),
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
   OTP_TTL_SECONDS: z.coerce.number().int().positive().default(600),
   OTP_MAX_SEND_PER_HOUR: z.coerce.number().int().positive().default(5),

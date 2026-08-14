@@ -116,6 +116,17 @@ since the PRD's flow (`POST /auth/otp/send` → `verify`) matches MSG91.
 
 MSG91 live delivery is still pending on the client's side per PRD §2.
 
+**Until it is, sign-in on a real phone only works for allowlisted test
+numbers.** `console` is refused in production because it returns the OTP in the
+API response — without that guard anyone could sign in as any number. Two
+handsets are exempted so the deployed app can be tested (see
+`DEFAULT_TEST_PHONES` in [`otp.service.ts`](backend/src/services/otp.service.ts),
+overridable with `OTP_TEST_PHONES`). Treat those numbers as credentials and
+clear the list once real SMS works.
+
+To go live: set `OTP_PROVIDER=msg91` **and** the three `MSG91_*` keys. Setting
+the keys alone is not enough — the provider still defaults to `console`.
+
 ---
 
 ## Money

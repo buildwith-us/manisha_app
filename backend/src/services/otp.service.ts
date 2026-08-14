@@ -14,6 +14,28 @@ import { ApiError } from '../utils/ApiError';
  * trigger a temporary lockout on that number.
  */
 
+/**
+ * ⚠️ TEST NUMBERS — REMOVE ONCE MSG91 IS LIVE.
+ *
+ * The console provider returns the OTP in the API response, so allowing it in
+ * production would let anyone sign in as any number. These specific handsets
+ * are exempted so the deployed app can be tested before SMS is wired up;
+ * every other number is still refused.
+ *
+ * Anyone who knows a number on this list can sign in as it. Keep it to phones
+ * you control, and empty OTP_TEST_PHONES once real SMS works.
+ */
+const DEFAULT_TEST_PHONES = ['+919363750806', '+919345548984'];
+
+const TEST_PHONES: readonly string[] = (
+  env.OTP_TEST_PHONES.length > 0 ? env.OTP_TEST_PHONES : DEFAULT_TEST_PHONES
+).map((entry) => `+91${entry.replace(/\D/g, '').slice(-10)}`);
+
+/** True when this number may use the console provider in production. */
+function isTestPhone(phone: string): boolean {
+  return TEST_PHONES.includes(`+91${phone.replace(/\D/g, '').slice(-10)}`);
+}
+
 const OTP_KEY = (phone: string) => `otp:code:${phone}`;
 const SEND_COUNT_KEY = (phone: string) => `otp:sends:${phone}`;
 const ATTEMPT_KEY = (phone: string) => `otp:attempts:${phone}`;
@@ -54,7 +76,8 @@ async function dispatch(phone: string, code: string): Promise<void> {
 
     case 'console':
     default:
-      if (isProduction) {
+      // Refused in production except for the test handsets above.
+      if (isProduction && !isTestPhone(phone)) {
         throw ApiError.serviceUnavailable('OTP provider is not configured for production.');
       }
       logger.info(`[DEV OTP] ${phone} → ${code}`);
@@ -96,9 +119,13 @@ export async function sendOtp(phone: string): Promise<SendOtpResult> {
 
   await dispatch(phone, code);
 
+  // The code only ever leaves the server outside production, or for a test
+  // handset that has no other way to receive it.
+  const mayEcho = !isProduction || isTestPhone(phone);
+
   return {
     expiresInSeconds: env.OTP_TTL_SECONDS,
-    ...(isProduction ? {} : { devCode: code }),
+    ...(mayEcho ? { devCode: code } : {}),
   };
 }
 
