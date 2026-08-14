@@ -25,7 +25,18 @@ import { ApiError } from '../utils/ApiError';
  * Anyone who knows a number on this list can sign in as it. Keep it to phones
  * you control, and empty OTP_TEST_PHONES once real SMS works.
  */
-const DEFAULT_TEST_PHONES = ['+919363750806', '+919345548984'];
+const DEFAULT_TEST_PHONES = [
+  // The shop's own handsets. These are also in ALWAYS_ADMIN_PHONES
+  // (auth.service.ts), so they always sign in as admin.
+  '+919363750806',
+  '+919345548984',
+
+  // Customer-side testing. Deliberately NOT admin, so the retail and wholesale
+  // experience can be checked on a real device. No SIM is needed: the console
+  // provider returns the code in the response and the app fills it in.
+  '+919000000001', // stays retail
+  '+919000000002', // use the Wholesale tab at sign-up to test approval
+];
 
 const TEST_PHONES: readonly string[] = (
   env.OTP_TEST_PHONES.length > 0 ? env.OTP_TEST_PHONES : DEFAULT_TEST_PHONES

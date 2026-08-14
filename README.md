@@ -124,6 +124,17 @@ handsets are exempted so the deployed app can be tested (see
 overridable with `OTP_TEST_PHONES`). Treat those numbers as credentials and
 clear the list once real SMS works.
 
+Test numbers, while the allowlist is in place:
+
+| Number | Signs in as |
+| --- | --- |
+| `9363750806`, `9345548984` | **Admin** — the shop's own handsets |
+| `9000000001` | **Retail** customer |
+| `9000000002` | **Wholesale** — pick the Wholesale tab; starts pending approval |
+
+No SIM is needed for any of them: the console provider returns the code in the
+API response and the app fills it in.
+
 To go live: set `OTP_PROVIDER=msg91` **and** the three `MSG91_*` keys. Setting
 the keys alone is not enough — the provider still defaults to `console`.
 
