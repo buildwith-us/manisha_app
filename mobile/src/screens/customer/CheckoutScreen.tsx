@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { PressableScale } from '../../components/motion';
+import { BlockSkeleton, PressableScale, Skeleton } from '../../components/motion';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Button,
   ErrorBanner,
   Group,
-  LoadingView,
   NavBar,
   Screen,
   SectionLabel,
@@ -84,7 +83,23 @@ export function CheckoutScreen() {
     navigation.replace('OrderConfirmation', { orderId: order.id });
   };
 
-  if (!cart) return <LoadingView />;
+  // Mirrors the loaded screen — three grouped blocks, the total, the pay button
+  // — so nothing jumps when the cart arrives. The NavBar is kept: returning a
+  // bare LoadingView dropped it, leaving no way back while the cart loaded.
+  if (!cart) {
+    return (
+      <Screen edges={['top']}>
+        <NavBar title="Checkout" onBack={() => navigation.goBack()} />
+        <BlockSkeleton rows={2} />
+        <BlockSkeleton rows={2} />
+        <BlockSkeleton rows={3} />
+        <View style={styles.skeletonFooter}>
+          <Skeleton height={18} width="30%" />
+          <Skeleton height={52} style={styles.skeletonButton} />
+        </View>
+      </Screen>
+    );
+  }
 
   const selectedAddress = addresses.find((entry) => entry.id === selectedAddressId);
   const [firstItem, ...restItems] = cart.items;
@@ -306,5 +321,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md + 2,
   },
   totalLabel: { ...typography.callout, color: colors.textMuted },
+  skeletonFooter: { paddingHorizontal: 24, marginTop: 32, gap: 16 },
+  skeletonButton: { borderRadius: 999 },
   totalValue: { ...typography.title2, color: colors.text },
 });

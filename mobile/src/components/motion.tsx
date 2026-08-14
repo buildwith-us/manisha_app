@@ -243,6 +243,28 @@ export function ProductCardSkeleton() {
   );
 }
 
+/**
+ * A section-label-plus-card skeleton, for the grouped blocks that detail
+ * screens are built from. `rows` should match the real block so the placeholder
+ * is the same height as what replaces it — a skeleton that resizes on load is
+ * worse than a spinner, because it promises the wrong shape.
+ */
+export function BlockSkeleton({ rows = 2, label = true }: { rows?: number; label?: boolean }) {
+  return (
+    <View style={styles.block}>
+      {label ? <Skeleton height={12} width="28%" style={styles.blockLabel} /> : null}
+      <View style={styles.blockCard}>
+        {Array.from({ length: rows }).map((_, index) => (
+          <View key={index} style={styles.blockRow}>
+            <Skeleton height={14} width={index % 2 === 0 ? '55%' : '40%'} />
+            <Skeleton height={14} width={48} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 /** A grouped-row shaped skeleton, for list screens. */
 export function ListRowSkeleton() {
   return (
@@ -268,4 +290,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   rowSkeletonBody: { flex: 1 },
+  block: { paddingHorizontal: spacing.xl, marginTop: spacing.xl },
+  blockLabel: { marginBottom: spacing.md, marginLeft: spacing.xs },
+  blockCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  blockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.lg,
+  },
 });
