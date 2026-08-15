@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: spacing.md + 2,
   },
-  searchInput: { flex: 1, paddingVertical: 11, fontSize: 16, color: colors.text },
+  searchInput: { flex: 1, paddingVertical: spacing.md, fontSize: 16, color: colors.text },
   filterButton: {
     width: 44,
     borderRadius: 12,

@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   stepDotReached: { backgroundColor: colors.primary },
   stepLine: { width: 2, flex: 1, backgroundColor: colors.fill, marginVertical: 6 },
   stepLineDone: { backgroundColor: colors.primary },
-  stepBody: { flex: 1, paddingBottom: 22 },
+  stepBody: { flex: 1, paddingBottom: spacing.xl },
   stepTitle: { ...typography.bodyStrong, fontWeight: '600', color: colors.text },
   stepTitleQuiet: { color: colors.textFaint },
   stepDetail: { ...typography.caption, color: colors.textFaint, marginTop: 3 },

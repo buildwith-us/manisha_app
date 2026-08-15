@@ -205,6 +205,8 @@ const styles = StyleSheet.create({
 
   priceCard: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.xl },
   priceRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.lg },
+  // 14px, deliberately off the scale: it optically centres the 1px dash
+  // against the two price fields. A scale step either way misaligns it.
   priceDash: { width: 16, height: 1, backgroundColor: colors.borderStrong, marginBottom: 14 },
   priceLabel: { ...typography.tiny, color: colors.textFaint },
   priceInput: { ...typography.bodyStrong, color: colors.text, paddingVertical: spacing.sm },

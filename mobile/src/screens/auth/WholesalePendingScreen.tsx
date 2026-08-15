@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.lg - 2,
-    paddingVertical: 7,
+    paddingVertical: spacing.sm,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
   },

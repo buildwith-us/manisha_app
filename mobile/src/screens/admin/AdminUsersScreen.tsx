@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md + 2,
     marginTop: spacing.lg,
   },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 16, color: colors.text },
+  searchInput: { flex: 1, paddingVertical: spacing.md, fontSize: 16, color: colors.text },
 
   chipsRow: { flexGrow: 0, marginTop: spacing.md, marginHorizontal: -spacing.xl },
   chips: { paddingHorizontal: spacing.xl, gap: spacing.sm },

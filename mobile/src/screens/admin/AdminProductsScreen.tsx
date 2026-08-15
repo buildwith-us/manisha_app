@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md + 2,
     marginTop: spacing.lg,
   },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 16, color: colors.text },
+  searchInput: { flex: 1, paddingVertical: spacing.md, fontSize: 16, color: colors.text },
 
   bannerWrap: { paddingHorizontal: spacing.xl },
 

@@ -1322,6 +1322,8 @@ const styles = StyleSheet.create({
   inputPrefix: { fontSize: 19, fontWeight: '500', color: colors.textMuted },
   inputPrefixRule: { width: 1, height: 22, backgroundColor: colors.borderFaint },
 
+  // 3px, deliberately off the scale: this is the track inset around a pill
+  // inside a pill, where 4 would visibly thicken the surround.
   segmented: { flexDirection: 'row', padding: 3, borderRadius: 11 },
   segment: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center' },
   segmentActive: { backgroundColor: colors.surface },
