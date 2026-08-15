@@ -1,47 +1,64 @@
-# UI refresh — what is left
+# UI refresh — state of play
 
 Continues the pass in `.claude/skills/emil-design-eng`. Motion, press feedback,
-skeletons and reduce-motion gating are **done app-wide**. What remains is the
-visual/consistency refresh on the screens below.
+skeletons and reduce-motion gating are **done app-wide**.
 
 ## Rules that still apply
 
 - **Do not change `theme/index.ts`** — no new colours, no new spacing values.
 - Reuse `ui.tsx` primitives rather than hand-rolling equivalents.
 - Motion values come from `theme/motion.ts`, never invented.
-- Work **screen by screen**, not with a regex sweep. Two sweeps in the last
-  session broke things (`PressableScale` swallowing function styles;
-  `AdminDashboard` losing a closing tag) because the edits were mechanical.
-- After each screen: `npx tsc --noEmit`, then look at it on a device.
+- Work **screen by screen**, not with a regex sweep. Two sweeps broke things
+  (`PressableScale` swallowing function styles; `AdminDashboard` losing a
+  closing tag) because the edits were mechanical.
+- After each screen: `npx tsc --noEmit`, then **look at it on a device**. Both
+  bugs above passed a clean typecheck and only showed on screen.
 
-## Remaining screens
+## Done and verified on a device
 
-| Screen | What to do |
+| Screen | Result |
 | --- | --- |
-| `AdminProductsScreen` | Header nests a row with a trailing action. Convert to `LargeTitle` using its `right` prop — a substitution will not work, it needs a restructure. |
-| `ProductDetailScreen` | Hero is full-bleed with `edges={[]}`, so scrolled content passes under the status bar and the title collides with the clock. Needs a scrim or a collapsing bar. |
-| `CartScreen` | Already on `LargeTitle`. Check the line-item rows use `ListRow` rather than bespoke markup. |
-| `CheckoutScreen` | Address / payment / summary blocks are hand-built; `Group` + `Row` cover most of it. |
-| `OrderDetailScreen`, `AdminOrderDetailScreen` | Status timeline is bespoke. Consider `StatusPill` + `ListRow` for the item lines. |
-| `AddressesScreen`, `AddressFormScreen` | Selection rows should be `SelectRow`; the form should use `FieldRow` throughout. |
-| `FiltersScreen` | Modal sheet — check the grabber, spacing scale and that it uses `Segmented`/`Chip`. |
-| `ProfileScreen` | The form behind Account. Should mirror `AddressFormScreen` once that is settled. |
-| `OrderConfirmationScreen` | One-off success layout; align its spacing to the 8px scale. |
-| `WholesalePendingScreen` | Bespoke timeline; same treatment as order detail. |
-| `AdminCategoriesScreen`, `AdminProductFormScreen` | Consistency only — admin redesign is out of scope. |
+| Catalogue (Home) | Uses `LargeTitle`; piece count in the caption |
+| Product detail | Safe-area inset instead of a hardcoded 44; status-bar scrim fades in as the hero scrolls away |
+| Orders | Layout regression fixed (cards had lost all styling) |
+| Saved | Staggered grid renders correctly |
+| Filter & sort | **Checked, needs nothing** — already uses the primitives, spacing and sheet pattern correctly |
+| Login / OTP | Keyboard no longer covers the primary action |
 
-## Not visually verified
+## Done, not yet seen running
 
-Everything except Home, Orders, Saved and the catalogue grid. Nothing after
-commit `b6704ef` has been seen running.
+| Screen | Change |
+| --- | --- |
+| Account (profile hub) | Identity block is now tappable; tier shown as a `StatusPill` |
+| Admin Orders / Accounts / Wholesale / Dashboard | Converted to `LargeTitle` |
+| Admin Products | Converted to `LargeTitle` with its two actions in the `right` slot |
+| Every screen with a loading state | Shaped skeletons |
+
+## Checked and found to need nothing
+
+- `AddressFormScreen` — already uses `FieldRow` throughout.
+- `FiltersScreen` — see above.
+- Cart, Checkout, Order detail, Wholesale pending, Admin categories, Admin
+  order detail all already use `Group` / `Row` / `SectionLabel`.
+
+## Genuinely left
+
+1. **`OrderConfirmationScreen`** — the only screen using no primitives. It has a
+   local `DetailRow` duplicating `Row`. Deliberately not changed: reaching it
+   needs a sign-in *and* placing an order, so it cannot be verified, and
+   restructuring it blind is how the `PressableScale` bug shipped.
+2. **Off-scale spacing** — about twenty literals like `marginTop: 3`,
+   `paddingVertical: 7`. Most are optical nudges inside components and are
+   probably correct as they are. Worth a pass with eyes on the screen, not a
+   find-and-replace.
+3. **Visual verification** of everything in the second table.
 
 ## Blocking
 
 **Redeploy Render from `pavi`.** Sign-in on the deployed backend is refused
 because the OTP allowlist is committed but not deployed, so no signed-in screen
 — Cart, Checkout, Orders, Account, or anything admin — can be reached to check.
-The same deploy also switches on reviews, storefront visibility and the
-hardcoded admin numbers, all committed and tested but currently unobservable.
+The same deploy switches on reviews, storefront visibility and the hardcoded
+admin numbers, all committed and tested but currently unobservable.
 
-Do this before more UI work: adding unverified UI on top of an unverifiable
-stack is how the `PressableScale` layout bug reached a device.
+Items 1 and 3 above are gated on this.
