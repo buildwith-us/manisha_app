@@ -10,7 +10,15 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Divider, EmptyState, ErrorBanner, ListRow, LoadingView, Screen } from '../../components/ui';
+import {
+  Divider,
+  EmptyState,
+  ErrorBanner,
+  LargeTitle,
+  ListRow,
+  LoadingView,
+  Screen,
+} from '../../components/ui';
 import { Icon } from '../../components/Icon';
 import { PressableScale, StaggerItem } from '../../components/motion';
 import { productApi } from '../../api/endpoints';
@@ -78,35 +86,42 @@ export function AdminProductsScreen() {
 
   return (
     <Screen>
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.overline}>Admin</Text>
-            <Text style={styles.title}>Products</Text>
-          </View>
-
-          <PressableScale
-            onPress={() => navigation.navigate('AdminCategories')}
-            hitSlop={8}
-            accessibilityRole="button"
-          >
-            <Text style={styles.link}>Categories</Text>
-          </PressableScale>
-
-          {/* PRD 8.9 — creating a product means setting both prices, so it is
-              admin-only. Staff manage stock and content on existing products. */}
-          {canCreate ? (
+      {/* The two actions ride in LargeTitle's `right` slot, which is what it is
+          for — the previous markup rebuilt the whole title block by hand to
+          place them. The count moves into `caption`, directly under the title,
+          matching the catalogue. */}
+      <LargeTitle
+        overline="Admin"
+        title="Products"
+        caption={
+          (pagination ? `${pagination.total} in the catalogue` : `${items.length} loaded`) +
+          (canCreate ? '' : ' · staff can edit stock and details, not prices')
+        }
+        right={
+          <View style={styles.headerActions}>
             <PressableScale
-              onPress={() => navigation.navigate('AdminProductForm')}
+              onPress={() => navigation.navigate('AdminCategories')}
+              hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Add a product"
-              style={[styles.addButton, shadowAccent]}
             >
-              <Icon name="plus" size={19} color={colors.textInverse} strokeWidth={2.2} />
+              <Text style={styles.link}>Categories</Text>
             </PressableScale>
-          ) : null}
-        </View>
 
+            {/* PRD 8.9 — creating a product means setting both prices, so it is
+                admin-only. Staff manage stock and content on existing products. */}
+            {canCreate ? (
+              <PressableScale
+                onPress={() => navigation.navigate('AdminProductForm')}
+                accessibilityRole="button"
+                accessibilityLabel="Add a product"
+                style={[styles.addButton, shadowAccent]}
+              >
+                <Icon name="plus" size={19} color={colors.textInverse} strokeWidth={2.2} />
+              </PressableScale>
+            ) : null}
+          </View>
+        }
+      >
         <View style={styles.searchField}>
           <Icon name="search" size={17} color={colors.textPlaceholder} />
           <TextInput
@@ -120,11 +135,7 @@ export function AdminProductsScreen() {
           />
         </View>
 
-        <Text style={styles.count}>
-          {pagination ? `${pagination.total} in the catalogue` : `${items.length} loaded`}
-          {canCreate ? '' : ' · staff can edit stock and details, not prices'}
-        </Text>
-      </View>
+      </LargeTitle>
 
       {error ? (
         <View style={styles.bannerWrap}>
@@ -205,10 +216,7 @@ export function AdminProductsScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.md },
-  headerTop: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.lg },
-  overline: { ...typography.footnoteStrong, color: colors.textFaint },
-  title: { ...typography.display, fontSize: 30, color: colors.text, marginTop: 6 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   link: { ...typography.calloutStrong, color: colors.primary, marginBottom: 4 },
   addButton: {
     width: 36,
@@ -229,7 +237,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   searchInput: { flex: 1, paddingVertical: 10, fontSize: 16, color: colors.text },
-  count: { ...typography.footnote, color: colors.textFaint, marginTop: spacing.md },
 
   bannerWrap: { paddingHorizontal: spacing.xl },
 

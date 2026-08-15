@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Dimensions, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -35,6 +45,11 @@ const HERO_HEIGHT = Math.round(width * 0.78);
  */
 export function ProductDetailScreen() {
   const navigation = useNavigation<Nav>();
+  // The hero is full-bleed, so this screen opts out of safe-area padding. The
+  // controls and the scrim below therefore have to honour the inset themselves
+  // — the previous hardcoded 44 was only ever right on one device.
+  const insets = useSafeAreaInsets();
+  const scrollY = useRef(new Animated.Value(0)).current;
   const { params } = useRoute<Route>();
   const dispatch = useAppDispatch();
   const isStaff = useIsStaff();
@@ -167,6 +182,14 @@ export function ProductDetailScreen() {
     }
   };
 
+  // Fades a status-bar backdrop in as the hero scrolls away. Without it the
+  // product name rides directly under the clock once the image is gone.
+  const statusScrimOpacity = scrollY.interpolate({
+    inputRange: [HERO_HEIGHT - 120, HERO_HEIGHT - 40],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
   const handleShare = () => {
     if (!product) return;
     // No deep link exists for a product yet, so the sheet carries the name and
@@ -235,7 +258,14 @@ export function ProductDetailScreen() {
 
   return (
     <Screen tone="plain" edges={[]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
+      >
         <View style={styles.hero}>
           {product.images.length > 0 ? (
             <ScrollView
@@ -261,7 +291,7 @@ export function ProductDetailScreen() {
             <View style={styles.heroImage} />
           )}
 
-          <View style={styles.heroControls} pointerEvents="box-none">
+          <View style={[styles.heroControls, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
             <PressableScale
               onPress={() => navigation.goBack()}
               style={styles.glassButton}
@@ -436,7 +466,7 @@ export function ProductDetailScreen() {
             </ScrollView>
           </View>
         ) : null}
-      </ScrollView>
+      </Animated.ScrollView>
 
       <View style={styles.footer}>
         {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
@@ -472,6 +502,13 @@ export function ProductDetailScreen() {
           </View>
         )}
       </View>
+
+      {/* Backs the status bar once the hero has scrolled away, so the product
+          name never rides directly under the clock. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.statusScrim, { height: insets.top, opacity: statusScrimOpacity }]}
+      />
     </Screen>
   );
 }
@@ -481,11 +518,17 @@ const styles = StyleSheet.create({
   skeletonBody: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
   content: { paddingBottom: spacing.xl },
 
+  statusScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.surface,
+  },
   hero: { height: HERO_HEIGHT, backgroundColor: colors.background },
   heroImage: { width, height: HERO_HEIGHT },
   heroControls: {
     position: 'absolute',
-    top: 44,
     left: spacing.lg,
     right: spacing.lg,
     flexDirection: 'row',
