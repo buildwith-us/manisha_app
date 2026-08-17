@@ -63,7 +63,12 @@ export const removeFromCart = createAsyncThunk<Cart, string>('cart/remove', asyn
 
 export const checkout = createAsyncThunk<
   CheckoutResult,
-  { addressId: string; paymentMethod: 'razorpay' | 'cod' },
+  {
+    addressId: string;
+    paymentMethod: 'razorpay' | 'cod';
+    /** "Buy now" — order this product alone and leave the saved cart untouched. */
+    buyNow?: { productId: string; quantity: number };
+  },
   { rejectValue: string }
 >('cart/checkout', async (input, { rejectWithValue }) => {
   try {
@@ -135,8 +140,11 @@ const cartSlice = createSlice({
         state.placingOrder = false;
         state.orders = [action.payload.order, ...state.orders];
         // A COD order empties the cart immediately; a Razorpay order keeps it
-        // until the payment is confirmed, mirroring the server.
-        if (action.payload.order.paymentMethod === 'cod') {
+        // until the payment is confirmed, mirroring the server. A Buy-now order
+        // was never built from the cart, so the server left it alone and so
+        // must this — otherwise the local cart would empty on screen while the
+        // real one still holds every item.
+        if (action.payload.order.paymentMethod === 'cod' && !action.payload.order.fromBuyNow) {
           state.cart = { items: [], itemCount: 0, subtotal: 0, priceTier: 'retail', currency: 'INR' };
         }
       })
@@ -146,7 +154,10 @@ const cartSlice = createSlice({
       })
 
       .addCase(confirmPayment.fulfilled, (state, action) => {
-        state.cart = { items: [], itemCount: 0, subtotal: 0, priceTier: 'retail', currency: 'INR' };
+        // Mirrors the server: paying for a Buy-now order does not touch the cart.
+        if (!action.payload.fromBuyNow) {
+          state.cart = { items: [], itemCount: 0, subtotal: 0, priceTier: 'retail', currency: 'INR' };
+        }
         state.orders = [action.payload, ...state.orders.filter((o) => o.id !== action.payload.id)];
       })
       .addCase(confirmPayment.rejected, (state, action) => {

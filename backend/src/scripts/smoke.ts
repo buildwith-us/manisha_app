@@ -10,6 +10,7 @@
  *   - approval unlocking wholesale pricing (4.7)
  *   - staff blocked from changing prices, admin allowed (8.9)
  *   - COD checkout with flat shipping + price-at-order (4.3 / 4.4 / 8.2)
+ *   - "Buy now": a single-product order that leaves the saved cart intact
  *   - cancel-while-placed and stock restoration (4.5)
  *   - refresh-token rotation and reuse rejection (8.7 / 8.10)
  *
@@ -420,6 +421,104 @@ async function main(): Promise<void> {
       'an out-of-range quantity is rejected by validation before the controller',
       overValidator.status === 422,
       overValidator.body,
+    );
+
+    /* ── Buy now ──────────────────────────────────────────────────────── */
+    section('Buy now — one product, cart untouched');
+
+    // The client refuses to place a Buy-now order unless the server says it
+    // understands the field, because an older server would strip it and bill
+    // the whole cart with no visible error.
+    const buyNowConfig = await call('GET', '/config', { token: retail.accessToken });
+    check(
+      'config advertises Buy-now support',
+      buyNowConfig.body.data?.buyNowSupported === true,
+      buyNowConfig.body.data,
+    );
+
+    // A cart that has to survive the Buy-now order completely unchanged. This
+    // is the whole point of the feature: without it, "Buy now" would bill the
+    // customer for everything they had saved.
+    await call('POST', '/cart/items', {
+      token: retail.accessToken,
+      body: { productId, quantity: 2 },
+    });
+    const cartBeforeBuyNow = await call('GET', '/cart', { token: retail.accessToken });
+    check(
+      'the cart holds 2 pieces before Buy now',
+      cartBeforeBuyNow.body.data?.itemCount === 2,
+      cartBeforeBuyNow.body.data,
+    );
+
+    // Read live rather than hardcoded: an earlier section repriced this product.
+    const productBeforeBuyNow = await Product.findById(productId);
+    const stockBeforeBuyNow = productBeforeBuyNow?.stock ?? 0;
+    const buyNowUnitPrice = productBeforeBuyNow?.retailPrice ?? 0;
+
+    const buyNowOrder = await call('POST', '/orders/checkout', {
+      token: retail.accessToken,
+      body: { addressId, paymentMethod: 'cod', buyNow: { productId, quantity: 1 } },
+    });
+    check('Buy now checkout succeeds', buyNowOrder.status === 201, buyNowOrder.body);
+    check(
+      'the order holds only the bought product, at the bought quantity',
+      buyNowOrder.body.data?.order?.items?.length === 1 &&
+        buyNowOrder.body.data?.order?.items?.[0]?.quantity === 1,
+      buyNowOrder.body.data?.order?.items,
+    );
+    check(
+      'the total is that one line plus shipping, not the cart',
+      buyNowOrder.body.data?.order?.totalAmount === buyNowUnitPrice + 5000,
+      buyNowOrder.body.data?.order,
+    );
+    check(
+      'the order is flagged fromBuyNow so payment does not clear the cart',
+      buyNowOrder.body.data?.order?.fromBuyNow === true,
+      buyNowOrder.body.data?.order,
+    );
+
+    const cartAfterBuyNow = await call('GET', '/cart', { token: retail.accessToken });
+    check(
+      'the saved cart is untouched by a Buy-now order',
+      cartAfterBuyNow.body.data?.itemCount === 2,
+      cartAfterBuyNow.body.data,
+    );
+
+    const stockAfterBuyNow = (await Product.findById(productId))?.stock ?? 0;
+    check('stock falls by the bought quantity only', stockAfterBuyNow === stockBeforeBuyNow - 1, {
+      before: stockBeforeBuyNow,
+      after: stockAfterBuyNow,
+    });
+
+    const buyNowOverStock = await call('POST', '/orders/checkout', {
+      token: retail.accessToken,
+      body: { addressId, paymentMethod: 'cod', buyNow: { productId, quantity: 900 } },
+    });
+    check(
+      'Buy now cannot order more than the available stock',
+      buyNowOverStock.status === 409,
+      buyNowOverStock.body,
+    );
+
+    const buyNowUnknown = await call('POST', '/orders/checkout', {
+      token: retail.accessToken,
+      body: {
+        addressId,
+        paymentMethod: 'cod',
+        buyNow: { productId: '0123456789abcdef01234567', quantity: 1 },
+      },
+    });
+    check(
+      'Buy now on a product that does not exist is refused',
+      buyNowUnknown.status === 409,
+      buyNowUnknown.body,
+    );
+
+    const stockAfterFailures = (await Product.findById(productId))?.stock ?? 0;
+    check(
+      'a refused Buy now reserves no stock',
+      stockAfterFailures === stockAfterBuyNow,
+      { expected: stockAfterBuyNow, got: stockAfterFailures },
     );
 
     /* ── Session persistence ──────────────────────────────────────────── */

@@ -35,6 +35,8 @@ export interface SerializedOrder {
   orderStatus: OrderStatus;
   statusHistory: Array<{ status: OrderStatus; at: string; note?: string }>;
   cancellable: boolean;
+  /** True for a "Buy now" order, so the client knows not to clear its cart. */
+  fromBuyNow: boolean;
   customer?: { id: string; name?: string; phone: string };
   createdAt: string;
   updatedAt: string;
@@ -75,6 +77,7 @@ export function serializeOrder(
     })),
     // PRD 4.5 — cancellable only while still "placed", before processing begins.
     cancellable: order.orderStatus === 'placed',
+    fromBuyNow: order.fromBuyNow ?? false,
     ...(options.includeCustomer && populatedUser && 'phone' in populatedUser
       ? {
           customer: {
@@ -103,6 +106,12 @@ function generateOrderNumber(): string {
 export interface CheckoutInput {
   addressId: string;
   paymentMethod: PaymentMethod;
+  /**
+   * "Buy now" — order this one product instead of the saved cart. The cart is
+   * neither read nor cleared, so a customer holding five items who buys a
+   * single piece pays for that piece alone.
+   */
+  buyNow?: { productId: string; quantity: number };
 }
 
 export interface CheckoutResult {
@@ -128,23 +137,39 @@ export async function checkout(
   const address = user.addresses.id(input.addressId);
   if (!address) throw ApiError.badRequest('Select a valid delivery address');
 
-  const cart = await Cart.findOne({ userId: viewer.id });
-  if (!cart || cart.items.length === 0) throw ApiError.badRequest('Your cart is empty');
+  // One order builder, two sources. A Buy-now order skips the cart lookup
+  // entirely rather than reading and ignoring it.
+  const buyNow = input.buyNow;
+  const lines: Array<{ productId: string; quantity: number }> = [];
 
-  const products = await productRepository.findManyByIds(
-    cart.items.map((item) => item.productId.toString()),
-  );
+  if (buyNow) {
+    lines.push({ productId: buyNow.productId, quantity: buyNow.quantity });
+  } else {
+    const cart = await Cart.findOne({ userId: viewer.id });
+    if (!cart || cart.items.length === 0) throw ApiError.badRequest('Your cart is empty');
+    for (const item of cart.items) {
+      lines.push({ productId: item.productId.toString(), quantity: item.quantity });
+    }
+  }
+
+  const products = await productRepository.findManyByIds(lines.map((line) => line.productId));
   const productsById = new Map(products.map((product) => [product._id.toString(), product]));
 
   const items: IOrderItem[] = [];
-  for (const cartItem of cart.items) {
-    const product = productsById.get(cartItem.productId.toString());
+  for (const line of lines) {
+    const product = productsById.get(line.productId);
     if (!product || !product.isActive) {
-      throw ApiError.conflict('An item in your cart is no longer available. Please review your cart.');
-    }
-    if (product.stock < cartItem.quantity) {
       throw ApiError.conflict(
-        `"${product.name}" only has ${product.stock} left. Please update your cart.`,
+        buyNow
+          ? 'This product is no longer available.'
+          : 'An item in your cart is no longer available. Please review your cart.',
+      );
+    }
+    if (product.stock < line.quantity) {
+      throw ApiError.conflict(
+        buyNow
+          ? `"${product.name}" only has ${product.stock} left.`
+          : `"${product.name}" only has ${product.stock} left. Please update your cart.`,
       );
     }
 
@@ -152,7 +177,7 @@ export async function checkout(
       productId: product._id,
       name: product.name,
       image: product.images[0],
-      quantity: cartItem.quantity,
+      quantity: line.quantity,
       priceAtOrder: effectivePriceFor(product, viewer),
       priceTier: priceTierFor(viewer),
     });
@@ -195,6 +220,7 @@ export async function checkout(
       currency: env.CURRENCY,
       orderStatus: 'placed',
       statusHistory: [{ status: 'placed', at: new Date() }],
+      fromBuyNow: Boolean(buyNow),
     });
 
     if (input.paymentMethod === 'razorpay') {
@@ -206,7 +232,8 @@ export async function checkout(
       return { order: serializeOrder(order), payment: handle };
     }
 
-    await Cart.updateOne({ userId: viewer.id }, { $set: { items: [] } });
+    // Only a cart checkout empties the cart. A Buy-now order never read it.
+    if (!buyNow) await Cart.updateOne({ userId: viewer.id }, { $set: { items: [] } });
     return { order: serializeOrder(order) };
   } catch (error) {
     for (const entry of reserved) {
@@ -250,7 +277,11 @@ export async function confirmPayment(
   order.payment.paidAt = new Date();
   await order.save();
 
-  await Cart.updateOne({ userId: viewer.id }, { $set: { items: [] } });
+  // A Buy-now order was never built from the cart, so clearing it here would
+  // silently delete items the customer has not checked out.
+  if (!order.fromBuyNow) {
+    await Cart.updateOne({ userId: viewer.id }, { $set: { items: [] } });
+  }
 
   return serializeOrder(order);
 }
@@ -282,7 +313,10 @@ export async function handlePaymentWebhook(event: {
       paidAt: new Date(),
     };
     await order.save();
-    await Cart.updateOne({ userId: order.userId }, { $set: { items: [] } });
+    // Same rule as confirmPayment: a Buy-now order leaves the cart alone.
+    if (!order.fromBuyNow) {
+      await Cart.updateOne({ userId: order.userId }, { $set: { items: [] } });
+    }
     return;
   }
 

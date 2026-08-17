@@ -30,7 +30,11 @@ export type RootStackParamList = {
   // Customer
   ProductDetail: { productId: string };
   Filters: undefined;
-  Checkout: undefined;
+  /**
+   * No params is the ordinary cart checkout. `buyNow` switches the screen to a
+   * single-product order that leaves the saved cart untouched.
+   */
+  Checkout: { buyNow?: { productId: string; quantity: number } } | undefined;
   RazorpayCheckout: { orderId: string; handle: RazorpayHandle };
   OrderConfirmation: { orderId: string };
   OrderDetail: { orderId: string };

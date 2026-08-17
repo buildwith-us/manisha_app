@@ -214,6 +214,19 @@ export function ProductDetailScreen() {
     });
   };
 
+  /**
+   * Buy now skips the cart entirely. Checkout is handed this product and this
+   * quantity, and orders that alone — a customer with a full cart who buys one
+   * piece pays for the piece, not the cart. A guest gets the same thing after
+   * signing in, replayed from the pending intent.
+   */
+  const handleBuyNow = () => {
+    if (!product) return;
+    requireAuth({ type: 'buyNow', productId: product.id, quantity }, () => {
+      navigation.navigate('Checkout', { buyNow: { productId: product.id, quantity } });
+    });
+  };
+
   const handleToggleWishlist = () => {
     if (!product) return;
     requireAuth({ type: 'toggleWishlist', productId: product.id }, () => {
@@ -477,29 +490,43 @@ export function ProductDetailScreen() {
             onPress={() => navigation.navigate('AdminProductForm', { productId: product.id })}
           />
         ) : (
-          <View style={styles.footerRow}>
-            <QuantityStepper
-              quantity={quantity}
-              onChange={setQuantity}
-              min={1}
-              max={Math.max(1, product.stock)}
-              disabled={!product.inStock}
-              size="lg"
-            />
-            <Button
-              label={
-                product.inStock
-                  ? isWholesale
-                    ? `Add · ${formatPaise(product.price * quantity)}`
-                    : 'Add to cart'
-                  : 'Out of stock'
-              }
-              onPress={handleAddToCart}
-              disabled={!product.inStock}
-              loading={mutating}
-              style={{ flex: 1 }}
-            />
-          </View>
+          <>
+            <View style={styles.footerRow}>
+              <QuantityStepper
+                quantity={quantity}
+                onChange={setQuantity}
+                min={1}
+                max={Math.max(1, product.stock)}
+                disabled={!product.inStock}
+                size="lg"
+              />
+              <Button
+                label={
+                  product.inStock
+                    ? isWholesale
+                      ? `Add · ${formatPaise(product.price * quantity)}`
+                      : 'Add to cart'
+                    : 'Out of stock'
+                }
+                onPress={handleAddToCart}
+                disabled={!product.inStock}
+                loading={mutating}
+                style={{ flex: 1 }}
+              />
+            </View>
+
+            {/* Ghost, not a second filled button: this direction has one accent,
+                and the same primary-plus-ghost pair is what order confirmation
+                uses. Hidden when there is nothing to buy. */}
+            {product.inStock ? (
+              <Button
+                label="Buy now"
+                onPress={handleBuyNow}
+                variant="ghost"
+                style={styles.buyNow}
+              />
+            ) : null}
+          </>
         )}
       </View>
 
@@ -640,5 +667,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  buyNow: { marginTop: spacing.sm },
   feedback: { ...typography.footnote, color: colors.success, marginBottom: spacing.md },
 });

@@ -34,7 +34,9 @@ export type AuthIntent =
   | { type: 'addToCart'; productId: string; quantity: number }
   | { type: 'toggleWishlist'; productId: string }
   | { type: 'openTab'; tab: 'Cart' | 'Wishlist' | 'Orders' | 'Account' }
-  | { type: 'checkout' };
+  | { type: 'checkout' }
+  /** A guest who tapped "Buy now" lands on checkout for that product, not the cart. */
+  | { type: 'buyNow'; productId: string; quantity: number };
 
 interface AuthState {
   status: AuthStatus;

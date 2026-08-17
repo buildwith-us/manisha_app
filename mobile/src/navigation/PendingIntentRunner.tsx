@@ -47,6 +47,13 @@ export function PendingIntentRunner() {
       case 'checkout':
         if (navigationRef.isReady()) navigationRef.navigate('Checkout');
         break;
+      case 'buyNow':
+        if (navigationRef.isReady()) {
+          navigationRef.navigate('Checkout', {
+            buyNow: { productId: intent.productId, quantity: intent.quantity },
+          });
+        }
+        break;
     }
   }, [dispatch, intent, isSignedIn, isStaff]);
 

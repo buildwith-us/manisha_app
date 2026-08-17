@@ -3,11 +3,11 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Button, Group, Row, Screen } from '../../components/ui';
+import { Button, EmptyState, Group, Row, Screen } from '../../components/ui';
 import { BlockSkeleton } from '../../components/motion';
 import { Icon } from '../../components/Icon';
 import { orderApi } from '../../api/endpoints';
-import { colors, radius, shadow, shadowAccent, spacing, typography } from '../../theme';
+import { colors, radius, shadowAccent, spacing, typography } from '../../theme';
 import { formatPaise } from '../../utils/money';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Order } from '../../api/types';
@@ -23,13 +23,48 @@ export function OrderConfirmationScreen() {
   const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
   const [order, setOrder] = useState<Order | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     orderApi
       .detail(params.orderId)
-      .then(setOrder)
-      .catch(() => setOrder(null));
+      .then((result) => {
+        if (!cancelled) setOrder(result);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [params.orderId]);
+
+  /* The order exists — the customer has already paid or committed to COD by the
+     time this screen opens. Failing to read it back is a display problem, not a
+     payment one, so it says the order is placed and offers the orders list.
+     Falling through to the skeleton instead would strand someone who has just
+     paid on a screen that never resolves. */
+  if (failed) {
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <EmptyState
+          icon="info"
+          title="Order placed"
+          message="We could not load the details just now. You'll find this order under My orders."
+          action={
+            <Button
+              label="Go to my orders"
+              onPress={() => navigation.replace('CustomerTabs', { screen: 'Orders' })}
+              fullWidth={false}
+            />
+          }
+        />
+      </Screen>
+    );
+  }
 
   if (!order) {
     return (

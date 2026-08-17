@@ -36,6 +36,12 @@ export interface StoreConfig {
   prepaidShippingCharge: number;
   razorpayEnabled: boolean;
   razorpayKeyId: string | null;
+  /**
+   * True when the API understands "Buy now". Optional because a server that
+   * predates the feature simply omits it — and that server would silently
+   * check out the whole cart, so its absence has to block the order.
+   */
+  buyNowSupported?: boolean;
 }
 
 export const configApi = {
@@ -189,8 +195,12 @@ export const wishlistApi = {
 /* ── Orders (PRD 4.4 / 4.5) ─────────────────────────────────────────────── */
 
 export const orderApi = {
-  checkout: (input: { addressId: string; paymentMethod: 'razorpay' | 'cod' }) =>
-    post<CheckoutResult>('/orders/checkout', input),
+  checkout: (input: {
+    addressId: string;
+    paymentMethod: 'razorpay' | 'cod';
+    /** "Buy now" — order this product alone and leave the saved cart untouched. */
+    buyNow?: { productId: string; quantity: number };
+  }) => post<CheckoutResult>('/orders/checkout', input),
 
   confirmPayment: (input: {
     orderId: string;

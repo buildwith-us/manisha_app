@@ -144,6 +144,12 @@ export interface Order {
   orderStatus: OrderStatus;
   statusHistory: Array<{ status: OrderStatus; at: string; note?: string }>;
   cancellable: boolean;
+  /**
+   * True for a "Buy now" order. The server built it from one product rather
+   * than the cart and left the cart intact, so the client must not clear its
+   * local copy when this order is placed or paid for.
+   */
+  fromBuyNow: boolean;
   customer?: { id: string; name?: string; phone: string };
   createdAt: string;
   updatedAt: string;

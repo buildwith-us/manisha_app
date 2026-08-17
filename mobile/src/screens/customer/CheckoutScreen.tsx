@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BlockSkeleton, PressableScale, Skeleton } from '../../components/motion';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Button,
+  EmptyState,
   ErrorBanner,
   Group,
   NavBar,
@@ -12,25 +13,33 @@ import {
   SectionLabel,
   SelectionMark,
 } from '../../components/ui';
-import { configApi, type StoreConfig } from '../../api/endpoints';
+import { configApi, productApi, type StoreConfig } from '../../api/endpoints';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { checkout, clearError, fetchCart } from '../../store/slices/cartSlice';
 import { fetchAddresses } from '../../store/slices/authSlice';
 import { colors, radius, shadow, spacing, typography } from '../../theme';
 import { formatPaise } from '../../utils/money';
 import type { RootStackParamList } from '../../navigation/types';
-import type { PaymentMethod } from '../../api/types';
+import type { PaymentMethod, Product } from '../../api/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Checkout'>;
+type Route = RouteProp<RootStackParamList, 'Checkout'>;
 
 /**
  * PRD 4.3 / 4.4 — order summary, address selection, and payment method.
  * Three grouped decisions and one total: Razorpay orders ship free, COD adds
  * the flat shipping charge the server owns.
+ *
+ * Two sources feed the same screen. Without params it checks out the saved
+ * cart. With `buyNow` it orders a single product and never touches the cart —
+ * the server enforces that too, so the cart survives even if this screen is
+ * wrong about it.
  */
 export function CheckoutScreen() {
   const navigation = useNavigation<Nav>();
+  const { params } = useRoute<Route>();
   const dispatch = useAppDispatch();
+  const buyNow = params?.buyNow;
 
   const cart = useAppSelector((state) => state.cart.cart);
   const placingOrder = useAppSelector((state) => state.cart.placingOrder);
@@ -38,11 +47,18 @@ export function CheckoutScreen() {
   const addresses = useAppSelector((state) => state.auth.user?.addresses ?? []);
 
   const [config, setConfig] = useState<StoreConfig | null>(null);
+  /** Settled either way — `config === null` alone cannot tell loading from failed. */
+  const [configLoaded, setConfigLoaded] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('razorpay');
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
+  /* The one product a Buy-now checkout is ordering. Its price comes from the
+     API at the buyer's tier — this screen never computes money, it only adds
+     the server's unit price up. `null` while loading, `false` once the fetch
+     has failed, which is what separates "still waiting" from "gave up". */
+  const [buyNowProduct, setBuyNowProduct] = useState<Product | null | false>(null);
+
   useEffect(() => {
-    void dispatch(fetchCart());
     void dispatch(fetchAddresses());
     configApi
       .get()
@@ -51,8 +67,32 @@ export function CheckoutScreen() {
         // Fall back to COD when online payment is not configured.
         if (!result.razorpayEnabled) setPaymentMethod('cod');
       })
-      .catch(() => setConfig(null));
+      .catch(() => setConfig(null))
+      .finally(() => setConfigLoaded(true));
   }, [dispatch]);
+
+  useEffect(() => {
+    // A Buy-now checkout deliberately does not fetch the cart: reading it would
+    // only invite the summary to drift toward showing items nobody is buying.
+    if (!buyNow) {
+      void dispatch(fetchCart());
+      return;
+    }
+
+    let cancelled = false;
+    productApi
+      .detail(buyNow.productId)
+      .then((result) => {
+        if (!cancelled) setBuyNowProduct(result);
+      })
+      .catch(() => {
+        if (!cancelled) setBuyNowProduct(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [buyNow, dispatch]);
 
   useEffect(() => {
     if (!selectedAddressId && addresses.length > 0) {
@@ -65,13 +105,19 @@ export function CheckoutScreen() {
     return paymentMethod === 'cod' ? config.codShippingCharge : config.prepaidShippingCharge;
   }, [config, paymentMethod]);
 
-  const subtotal = cart?.subtotal ?? 0;
+  const subtotal = buyNow
+    ? buyNowProduct
+      ? buyNowProduct.price * buyNow.quantity
+      : 0
+    : (cart?.subtotal ?? 0);
   const total = subtotal + shippingCharge;
 
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) return;
 
-    const result = await dispatch(checkout({ addressId: selectedAddressId, paymentMethod }));
+    const result = await dispatch(
+      checkout({ addressId: selectedAddressId, paymentMethod, buyNow }),
+    );
     if (!checkout.fulfilled.match(result)) return;
 
     const { order, payment } = result.payload;
@@ -83,10 +129,13 @@ export function CheckoutScreen() {
     navigation.replace('OrderConfirmation', { orderId: order.id });
   };
 
-  // Mirrors the loaded screen — three grouped blocks, the total, the pay button
-  // — so nothing jumps when the cart arrives. The NavBar is kept: returning a
+  // Waiting on whichever source this checkout is built from. The skeleton
+  // mirrors the loaded screen — three grouped blocks, the total, the pay button
+  // — so nothing jumps when the data arrives. The NavBar is kept: returning a
   // bare LoadingView dropped it, leaving no way back while the cart loaded.
-  if (!cart) {
+  // A Buy-now checkout also waits on config, because that is what says whether
+  // the server can honour it at all.
+  if (buyNow ? buyNowProduct === null || !configLoaded : !cart) {
     return (
       <Screen edges={['top']}>
         <NavBar title="Checkout" onBack={() => navigation.goBack()} />
@@ -101,10 +150,48 @@ export function CheckoutScreen() {
     );
   }
 
+  /* An API that does not advertise buyNow support would strip the field and
+     charge for the entire cart — zod drops unknown keys, so the response would
+     look like a perfectly ordinary success. There is no way to detect that
+     after the fact, so the order is refused before it is placed. Resolves
+     itself the moment the backend is redeployed. */
+  if (buyNow && config?.buyNowSupported !== true) {
+    return (
+      <Screen edges={['top']}>
+        <NavBar title="Checkout" onBack={() => navigation.goBack()} />
+        <EmptyState
+          icon="info"
+          title="Buy now is unavailable"
+          message="This store's server needs updating before single-item orders can be placed. Add the item to your cart and check out as usual."
+        />
+      </Screen>
+    );
+  }
+
+  // A Buy-now product that failed to load is a dead end — there is nothing to
+  // order and no cart to fall back on. Say so rather than holding a skeleton on
+  // screen for good.
+  if (buyNowProduct === false) {
+    return (
+      <Screen edges={['top']}>
+        <NavBar title="Checkout" onBack={() => navigation.goBack()} />
+        <EmptyState
+          icon="info"
+          title="Product unavailable"
+          message="We could not load this product. It may no longer be on sale."
+        />
+      </Screen>
+    );
+  }
+
   const selectedAddress = addresses.find((entry) => entry.id === selectedAddressId);
-  const [firstItem, ...restItems] = cart.items;
+  const cartItems = cart?.items ?? [];
+  const [firstItem, ...restItems] = cartItems;
   const restCount = restItems.reduce((sum, item) => sum + item.quantity, 0);
   const restTotal = restItems.reduce((sum, item) => sum + item.lineTotal, 0);
+  // Nothing to order is the one state that blocks the button beyond a missing
+  // address: an empty cart, or a Buy-now product that never arrived.
+  const hasSomethingToOrder = buyNow ? Boolean(buyNowProduct) : cartItems.length > 0;
 
   return (
     <Screen edges={['top']}>
@@ -172,21 +259,32 @@ export function CheckoutScreen() {
         </View>
 
         <View style={styles.block}>
-          <SectionLabel>Order summary</SectionLabel>
+          {/* "Buying now" rather than "Order summary": with a single line in the
+              card it is the clearest way to say the cart is not part of this. */}
+          <SectionLabel>{buyNow ? 'Buying now' : 'Order summary'}</SectionLabel>
           <View style={[styles.summaryCard, shadow]}>
-            {firstItem ? (
+            {buyNow && buyNowProduct ? (
               <SummaryLine
-                label={`${firstItem.quantity} × ${firstItem.product.name}`}
-                value={formatPaise(firstItem.lineTotal)}
+                label={`${buyNow.quantity} × ${buyNowProduct.name}`}
+                value={formatPaise(buyNowProduct.price * buyNow.quantity)}
               />
-            ) : null}
-            {restCount > 0 ? (
-              <SummaryLine
-                label={`${restCount} more item${restCount === 1 ? '' : 's'}`}
-                value={formatPaise(restTotal)}
-                divided
-              />
-            ) : null}
+            ) : (
+              <>
+                {firstItem ? (
+                  <SummaryLine
+                    label={`${firstItem.quantity} × ${firstItem.product.name}`}
+                    value={formatPaise(firstItem.lineTotal)}
+                  />
+                ) : null}
+                {restCount > 0 ? (
+                  <SummaryLine
+                    label={`${restCount} more item${restCount === 1 ? '' : 's'}`}
+                    value={formatPaise(restTotal)}
+                    divided
+                  />
+                ) : null}
+              </>
+            )}
             <SummaryLine
               label="Shipping"
               value={shippingCharge === 0 ? 'Free' : formatPaise(shippingCharge)}
@@ -206,7 +304,7 @@ export function CheckoutScreen() {
           label={paymentMethod === 'cod' ? 'Place order' : 'Pay now'}
           onPress={handlePlaceOrder}
           loading={placingOrder}
-          disabled={!selectedAddressId || cart.items.length === 0}
+          disabled={!selectedAddressId || !hasSomethingToOrder}
         />
       </View>
     </Screen>

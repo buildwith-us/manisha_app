@@ -33,6 +33,7 @@ skeletons and reduce-motion gating are **done app-wide**.
 | Admin Orders / Accounts / Wholesale / Dashboard | Converted to `LargeTitle` |
 | Admin Products | Converted to `LargeTitle` with its two actions in the `right` slot |
 | Every screen with a loading state | Shaped skeletons |
+| Order confirmation | Local `DetailRow` replaced by `Group` + `Row` |
 
 ## Checked and found to need nothing
 
@@ -41,17 +42,45 @@ skeletons and reduce-motion gating are **done app-wide**.
 - Cart, Checkout, Order detail, Wholesale pending, Admin categories, Admin
   order detail all already use `Group` / `Row` / `SectionLabel`.
 
+## Settled — do not re-open these
+
+**`OrderConfirmationScreen`** (be48c3a). It was the last screen rebuilding a
+grouped list by hand. The local `DetailRow` and its `divided` flag are gone;
+`Group` draws the hairlines itself. Nothing hand-rolled is left on that screen.
+
+**Off-scale spacing** (be48c3a). The twenty-odd literals were not one problem
+and did not get one fix:
+
+- *Corrected, because it was real drift.* The search field is duplicated across
+  four screens and had drifted to two paddings (10, 10, 10 and 11) — all four
+  now use `spacing.md`. A timeline step gap of 22 and a pill padding of 7 became
+  `spacing.xl` and `spacing.sm`.
+- *Left alone, deliberately, now with a comment saying why.* `segmented`'s
+  `padding: 3` is the track inset around a pill inside a pill. `priceDash`'s
+  `marginBottom: 14` optically centres a 1px dash between two price fields.
+  `hero`'s `paddingTop: 72` was a false positive — already on the 8px grid.
+
+About thirty literals remain and are **correct as they stand**: `marginTop: 2`
+/ `3` / `5` / `6` under a primary line, and `paddingVertical: 3` inside pills.
+These are baseline nudges between a label and its caption, where a 4px step is
+visibly too much air. Snapping them is a regression dressed as consistency. A
+future grep will surface them again — this paragraph is the answer.
+
 ## Genuinely left
 
-1. **`OrderConfirmationScreen`** — the only screen using no primitives. It has a
-   local `DetailRow` duplicating `Row`. Deliberately not changed: reaching it
-   needs a sign-in *and* placing an order, so it cannot be verified, and
-   restructuring it blind is how the `PressableScale` bug shipped.
-2. **Off-scale spacing** — about twenty literals like `marginTop: 3`,
-   `paddingVertical: 7`. Most are optical nudges inside components and are
-   probably correct as they are. Worth a pass with eyes on the screen, not a
-   find-and-replace.
-3. **Visual verification** of everything in the second table.
+1. **Visual verification** of everything in the "not yet seen running" table.
+2. **Two hand-rolled duplicates found after the screen-by-screen pass.** Both
+   are real, both are on sign-in-gated screens, so neither was changed blind:
+   - `AddressesScreen`'s `labelPill` + `labelText` reproduce `Badge` exactly
+     (9/3 padding, pill radius, `typography.tiny` on `textMuted`). The swap is
+     *not* free: `Badge` sets `alignSelf: 'flex-start'`, which in that
+     row-direction parent would top-align the pill instead of centring it.
+     Needs `style={{ alignSelf: 'center' }}` to stay identical.
+   - `CheckoutScreen`'s `summaryCard` + `SummaryLine`'s `divided` flag
+     reproduce what `Group` does automatically. Converting moves the hairlines
+     from inset (they currently sit inside the card's `spacing.xl` padding) to
+     full-bleed. That is a visible change, and possibly the better one — but it
+     is a design decision, not a cleanup.
 
 ## Blocking
 
@@ -61,4 +90,9 @@ because the OTP allowlist is committed but not deployed, so no signed-in screen
 The same deploy switches on reviews, storefront visibility and the hardcoded
 admin numbers, all committed and tested but currently unobservable.
 
-Items 1 and 3 above are gated on this.
+Both items above are gated on this. The `DEV_AUTH_BYPASS` in
+`src/config/devAuth.ts` is not a way around it: its token carries a nonsense
+signature, so it reaches the signed-in *shells* but every API call behind them
+401s. Order confirmation in particular fetches its order on mount, so the
+bypass alone will never show it populated — it needs a backend that accepts a
+real sign-in.

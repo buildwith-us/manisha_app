@@ -40,6 +40,13 @@ router.get('/config', authenticate, (_req, res) => {
     prepaidShippingCharge: env.PREPAID_SHIPPING_CHARGE,
     razorpayEnabled: razorpayConfigured,
     razorpayKeyId: razorpayConfigured ? env.RAZORPAY_KEY_ID : null,
+    /**
+     * Advertises that /orders/checkout understands `buyNow`. A server that
+     * predates the feature strips the unknown field and bills the whole cart
+     * instead, which the client cannot detect from the response — so it asks
+     * first and refuses to place the order when this is missing.
+     */
+    buyNowSupported: true,
   });
 });
 

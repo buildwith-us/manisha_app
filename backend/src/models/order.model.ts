@@ -55,6 +55,14 @@ export interface IOrder extends Document<Types.ObjectId> {
   currency: string;
   orderStatus: OrderStatus;
   statusHistory: IOrderStatusEvent[];
+  /**
+   * True when the order came from "Buy now" rather than the saved cart.
+   *
+   * Payment confirmation empties the cart, and a Buy-now order must not: the
+   * customer's cart had nothing to do with it, and clearing it would silently
+   * delete items they never checked out.
+   */
+  fromBuyNow?: boolean;
   cancelledAt?: Date;
   cancellationReason?: string;
   createdAt: Date;
@@ -112,6 +120,7 @@ const orderSchema = new Schema<IOrder>(
     currency: { type: String, default: 'INR' },
     orderStatus: { type: String, enum: ORDER_STATUSES, default: 'placed', required: true },
     statusHistory: { type: [statusEventSchema], default: [] },
+    fromBuyNow: { type: Boolean, default: false },
     cancelledAt: { type: Date },
     cancellationReason: { type: String, maxlength: 300 },
   },

@@ -5,6 +5,17 @@ import { objectId, paginationQuery } from './common';
 export const checkoutSchema = z.object({
   addressId: objectId,
   paymentMethod: z.enum(['razorpay', 'cod']),
+  /**
+   * "Buy now" — order this one product and leave the saved cart untouched.
+   * Omitted for a normal cart checkout. The quantity ceiling matches the cart's
+   * so the two routes to an order cannot disagree about what is orderable.
+   */
+  buyNow: z
+    .object({
+      productId: objectId,
+      quantity: z.number().int().min(1).max(999),
+    })
+    .optional(),
 });
 
 export const confirmPaymentSchema = z.object({
