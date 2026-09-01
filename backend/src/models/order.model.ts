@@ -63,6 +63,16 @@ export interface IOrder extends Document<Types.ObjectId> {
    * delete items they never checked out.
    */
   fromBuyNow?: boolean;
+  /**
+   * When the stock this order was holding was credited back.
+   *
+   * Three paths cancel an order — the customer, the store, and Razorpay's
+   * payment.failed webhook — and more than one can fire for the same order: a
+   * customer who cancels a pending online payment still gets the webhook
+   * afterwards. Without this marker each path restocks independently and
+   * inflates the count, so it is set once and checked before every release.
+   */
+  stockReleasedAt?: Date;
   cancelledAt?: Date;
   cancellationReason?: string;
   createdAt: Date;
@@ -121,6 +131,7 @@ const orderSchema = new Schema<IOrder>(
     orderStatus: { type: String, enum: ORDER_STATUSES, default: 'placed', required: true },
     statusHistory: { type: [statusEventSchema], default: [] },
     fromBuyNow: { type: Boolean, default: false },
+    stockReleasedAt: { type: Date },
     cancelledAt: { type: Date },
     cancellationReason: { type: String, maxlength: 300 },
   },

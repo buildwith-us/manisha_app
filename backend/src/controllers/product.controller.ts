@@ -18,8 +18,11 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
     includeInactive?: boolean;
   };
 
-  // Only staff may ask to see deactivated products.
-  const includeInactive = Boolean(query.includeInactive) && isStaffRole(req.user!.accountType);
+  // Only staff may ask to see deactivated products. This route is guest-
+  // reachable, so req.user has to be tolerated as absent — a guest asking for
+  // includeInactive is simply refused it, not crashed on.
+  const includeInactive =
+    Boolean(query.includeInactive) && Boolean(req.user) && isStaffRole(req.user!.accountType);
 
   const result = await productService.listProducts({ ...query, includeInactive }, req.user);
   res.success(result.items, result.pagination);

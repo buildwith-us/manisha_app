@@ -31,6 +31,11 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
  * PRD 4.3 — quantity adjustment, removal, and an order summary before checkout.
  * A stock problem tints its own row's stepper and says why in one line; the
  * checkout button greys out rather than the screen shouting.
+ *
+ * Each row also carries its own "Buy now", so a customer holding five pieces can
+ * order one of them without checking out — or emptying — the rest. It reuses the
+ * same single-product checkout the product page uses, which the server prices
+ * and fulfils without touching the saved cart.
  */
 export function CartScreen() {
   const navigation = useNavigation<Nav>();
@@ -105,9 +110,17 @@ export function CartScreen() {
               </PressableScale>
 
               <View style={styles.details}>
-                <Text style={styles.name} numberOfLines={2}>
-                  {item.product.name}
-                </Text>
+                {/* The line total sits with the name rather than at the end of
+                    the controls row: with three controls down there it is the
+                    only arrangement that still fits a 360dp phone. */}
+                <View style={styles.nameRow}>
+                  <Text style={styles.name} numberOfLines={2}>
+                    {item.product.name}
+                  </Text>
+                  <Text style={styles.lineTotal} numberOfLines={1}>
+                    {formatPaise(item.lineTotal)}
+                  </Text>
+                </View>
 
                 {item.stockIssue ? (
                   <Text style={styles.stockIssue}>{item.stockIssue}</Text>
@@ -127,6 +140,30 @@ export function CartScreen() {
                     flagged={Boolean(item.stockIssue)}
                   />
 
+                  {/* Buys this line alone at its current quantity. Refused
+                      while the line is flagged, for the same reason Checkout is:
+                      the server would reject the quantity anyway. */}
+                  <PressableScale
+                    onPress={() =>
+                      navigation.navigate('Checkout', {
+                        buyNow: { productId: item.productId, quantity: item.quantity },
+                      })
+                    }
+                    disabled={Boolean(item.stockIssue) || mutating}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Buy ${item.product.name} now`}
+                  >
+                    <Text
+                      style={[
+                        styles.buyNow,
+                        (item.stockIssue || mutating) && styles.actionDisabled,
+                      ]}
+                    >
+                      Buy now
+                    </Text>
+                  </PressableScale>
+
                   <PressableScale
                     onPress={() => dispatch(removeFromCart(item.productId))}
                     hitSlop={8}
@@ -136,8 +173,6 @@ export function CartScreen() {
                     <Text style={styles.remove}>Remove</Text>
                   </PressableScale>
 
-                  <View style={{ flex: 1 }} />
-                  <Text style={styles.lineTotal}>{formatPaise(item.lineTotal)}</Text>
                 </View>
               </View>
             </View>
@@ -173,17 +208,25 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.lg, padding: spacing.xl },
   thumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: colors.background },
   details: { flex: 1, minWidth: 0 },
-  name: { ...typography.bodyStrong, color: colors.text },
+  nameRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  name: { ...typography.bodyStrong, color: colors.text, flex: 1, minWidth: 0 },
   unitPrice: { ...typography.caption, color: colors.textFaint, marginTop: spacing.xs },
   stockIssue: { ...typography.captionStrong, color: colors.primary, marginTop: spacing.xs },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
+    // Wraps rather than overflows: a stepper plus two text actions does not fit
+    // one line on a 360dp handset, and clipping "Remove" is worse than a
+    // second line.
+    flexWrap: 'wrap',
     gap: spacing.md,
     marginTop: spacing.md,
   },
+  /** The affirmative action carries the accent; Remove stays quiet beside it. */
+  buyNow: { ...typography.footnoteStrong, color: colors.primary },
   remove: { ...typography.footnote, color: colors.textFaint },
-  lineTotal: { ...typography.bodyStrong, color: colors.text },
+  actionDisabled: { opacity: 0.4 },
+  lineTotal: { ...typography.bodyStrong, color: colors.text, flexShrink: 0 },
 
   summary: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.lg },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },

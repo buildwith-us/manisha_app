@@ -8,6 +8,7 @@ import {
   type SerializedProduct,
 } from '../serializers/product.serializer';
 import { ApiError } from '../utils/ApiError';
+import { isProductVisibleTo } from '../utils/rbac';
 import type { AuthenticatedUser } from '../types';
 
 export interface SerializedCartItem {
@@ -93,7 +94,12 @@ export async function addToCart(
   quantity: number,
 ): Promise<SerializedCart> {
   const product = await productRepository.findById(productId);
-  if (!product || !product.isActive) throw ApiError.notFound('Product not found');
+  // A product the viewer's storefront excludes is a 404 here exactly as it is
+  // on the product detail route — otherwise knowing the id would be enough to
+  // buy a wholesale-only piece at the retail price.
+  if (!product || !product.isActive || !isProductVisibleTo(product.visibility, viewer)) {
+    throw ApiError.notFound('Product not found');
+  }
   if (product.stock === 0) throw ApiError.conflict('This product is out of stock');
 
   const cart = await Cart.findOneAndUpdate(

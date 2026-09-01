@@ -50,7 +50,6 @@ export function CheckoutScreen() {
   /** Settled either way — `config === null` alone cannot tell loading from failed. */
   const [configLoaded, setConfigLoaded] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('razorpay');
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   /* The one product a Buy-now checkout is ordering. Its price comes from the
      API at the buyer's tier — this screen never computes money, it only adds
@@ -94,11 +93,15 @@ export function CheckoutScreen() {
     };
   }, [buyNow, dispatch]);
 
-  useEffect(() => {
-    if (!selectedAddressId && addresses.length > 0) {
-      setSelectedAddressId((addresses.find((entry) => entry.isDefault) ?? addresses[0]).id);
-    }
-  }, [addresses, selectedAddressId]);
+  /*
+     Derived, not held in state. "Change" opens the Addresses screen, which
+     records the choice by making that address the default — so the default is
+     the selection. Latching the first one into state meant coming back from
+     that screen changed nothing: the old address stayed on screen and was the
+     one the order shipped to.
+  */
+  const selectedAddress = addresses.find((entry) => entry.isDefault) ?? addresses[0];
+  const selectedAddressId = selectedAddress?.id ?? null;
 
   const shippingCharge = useMemo(() => {
     if (!config) return 0;
@@ -184,7 +187,6 @@ export function CheckoutScreen() {
     );
   }
 
-  const selectedAddress = addresses.find((entry) => entry.id === selectedAddressId);
   const cartItems = cart?.items ?? [];
   const [firstItem, ...restItems] = cartItems;
   const restCount = restItems.reduce((sum, item) => sum + item.quantity, 0);

@@ -1,3 +1,4 @@
+import path from 'path';
 import compression from 'compression';
 import cors from 'cors';
 import express, { type Application } from 'express';
@@ -48,6 +49,29 @@ export function createApp(): Application {
   );
   app.use(compression());
   app.use(morgan(isProduction ? 'combined' : 'dev'));
+
+  /**
+   * Stand-in product photography (PRD 8.3 says images belong in Cloudinary).
+   *
+   * Cloudinary is the real home for these: it does the resizing and format
+   * negotiation, and it keeps image bytes off the API process. Until those
+   * credentials exist, the demo catalogue would otherwise render as grey
+   * boxes, so the files in public/ are served directly.
+   *
+   * Lives outside `${env.API_PREFIX}` because it is not part of the API, and
+   * outside src/ because tsc only emits .ts — nothing here needs building.
+   * Replace with Cloudinary URLs and this mount can go.
+   */
+  app.use(
+    '/static',
+    express.static(path.resolve(process.cwd(), 'public'), {
+      maxAge: isProduction ? '7d' : 0,
+      // The directory holds only product photography; never let a miss fall
+      // through to the API's 404 handler as an index listing.
+      index: false,
+      redirect: false,
+    }),
+  );
 
   // ── Webhooks: mounted before the JSON parser's normal path so the raw body
   // survives for HMAC verification (PRD 4.4). ──

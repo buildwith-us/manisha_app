@@ -9,10 +9,26 @@ import * as tokenService from './token.service';
 
 const LOW_STOCK_THRESHOLD = 5;
 
+/** India has no daylight saving, so the day boundary is a fixed offset. */
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/**
+ * Midnight as the shop counts it.
+ *
+ * `new Date().setHours(0, 0, 0, 0)` reads the server's clock, and the server
+ * runs in UTC — so "today" would roll over at 5:30am in the shop, and every
+ * morning until then the dashboard would report yesterday's orders and takings
+ * as today's.
+ */
+function startOfDayInIst(): Date {
+  const nowInIst = new Date(Date.now() + IST_OFFSET_MS);
+  nowInIst.setUTCHours(0, 0, 0, 0);
+  return new Date(nowInIst.getTime() - IST_OFFSET_MS);
+}
+
 /** PRD 4.7 — basic dashboard: today's orders, pending approvals, low stock. */
 export async function getDashboard(viewer: AuthenticatedUser) {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  const startOfDay = startOfDayInIst();
 
   const [
     todaysOrders,

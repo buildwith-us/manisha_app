@@ -7,6 +7,7 @@ import { User } from '../models/user.model';
 import * as productRepository from '../repositories/product.repository';
 import { effectivePriceFor, priceTierFor } from '../serializers/product.serializer';
 import { ApiError } from '../utils/ApiError';
+import { isProductVisibleTo } from '../utils/rbac';
 import { ORDER_STATUS_TRANSITIONS, type OrderStatus, type PaymentMethod } from '../types';
 import type { AuthenticatedUser } from '../types';
 import * as paymentService from './payment.service';
@@ -158,7 +159,11 @@ export async function checkout(
   const items: IOrderItem[] = [];
   for (const line of lines) {
     const product = productsById.get(line.productId);
-    if (!product || !product.isActive) {
+    // Visibility is checked here as well as at add-to-cart: this is the last
+    // point before money, and a Buy-now line never passed through the cart at
+    // all. Without it the product id alone would be enough to order a piece the
+    // buyer's storefront excludes, at their own tier's price.
+    if (!product || !product.isActive || !isProductVisibleTo(product.visibility, viewer)) {
       throw ApiError.conflict(
         buyNow
           ? 'This product is no longer available.'
@@ -336,7 +341,19 @@ export async function handlePaymentWebhook(event: {
   }
 }
 
+/**
+ * Credits this order's stock back, at most once.
+ *
+ * The customer, the store and the payment.failed webhook can all cancel the
+ * same order — a customer who cancels a pending online payment still gets the
+ * webhook afterwards — so without the marker the pieces would be counted back
+ * in twice and the catalogue would claim stock it does not have. The caller
+ * saves the order; setting the marker here keeps every path honest.
+ */
 async function releaseStock(order: IOrder): Promise<void> {
+  if (order.stockReleasedAt) return;
+  order.stockReleasedAt = new Date();
+
   for (const item of order.items) {
     await productRepository.incrementStock(item.productId.toString(), item.quantity);
   }
@@ -377,7 +394,13 @@ export async function listAllOrders(filters: {
 }) {
   const query: Record<string, unknown> = {};
   if (filters.status) query.orderStatus = filters.status;
-  if (filters.search) query.orderNumber = new RegExp(filters.search.trim(), 'i');
+  if (filters.search) {
+    // Escaped, not interpolated: an order number typed with a bracket or a
+    // paren would otherwise be compiled as a pattern — a syntax error becomes a
+    // 500, and a pathological one becomes a slow scan.
+    const escaped = filters.search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    query.orderNumber = new RegExp(escaped, 'i');
+  }
 
   const skip = (filters.page - 1) * filters.limit;
   const [orders, total] = await Promise.all([

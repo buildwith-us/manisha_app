@@ -8,22 +8,11 @@ import {
   type SerializedProduct,
 } from '../serializers/product.serializer';
 import { ApiError } from '../utils/ApiError';
-import { PERMISSIONS } from '../utils/rbac';
+// Storefront visibility lives in utils/rbac.ts so that the paths which take a
+// product id straight from the client — detail, cart, Buy now, checkout — all
+// answer the question the same way.
+import { PERMISSIONS, isProductVisibleTo, storefrontFor } from '../utils/rbac';
 import type { AuthenticatedUser } from '../types';
-
-/**
- * Which storefront a viewer browses (PRD 4.2 / 4.7).
- *
- * Staff and admin get 'all' so the management list still shows every product
- * whatever its visibility. A pending or rejected wholesale applicant is not an
- * approved buyer, so they see the retail storefront.
- */
-function storefrontFor(viewer?: AuthenticatedUser | null): 'retail' | 'wholesale' | 'all' {
-  if (viewer?.accountType === 'admin' || viewer?.accountType === 'staff') return 'all';
-  return viewer?.accountType === 'wholesale' && viewer.wholesaleStatus === 'approved'
-    ? 'wholesale'
-    : 'retail';
-}
 
 export interface ProductListResult {
   items: SerializedProduct[];
@@ -76,9 +65,7 @@ export async function getProduct(
 
   // Same rule as the list, applied again here: without it a shared link would
   // reach a product the viewer's storefront excludes.
-  const storefront = storefrontFor(viewer);
-  const visibility = product.visibility ?? 'both';
-  if (storefront !== 'all' && visibility !== 'both' && visibility !== storefront) {
+  if (!isProductVisibleTo(product.visibility, viewer)) {
     throw ApiError.notFound('Product not found');
   }
 

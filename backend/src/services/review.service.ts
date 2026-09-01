@@ -159,17 +159,17 @@ export async function upsertReview(
 
   const verifiedPurchase = await hasPurchased(userId, productId);
 
+  // An omitted comment clears a previous one rather than silently keeping text
+  // the customer thinks they removed. Clearing has to be an explicit $unset:
+  // Mongoose strips undefined values out of an update, so `comment: undefined`
+  // inside $set is dropped and the old text survives the edit.
+  const comment = input.comment?.trim();
+
   const review = await Review.findOneAndUpdate(
     { productId, userId },
-    {
-      $set: {
-        rating: input.rating,
-        // An omitted comment clears a previous one rather than silently keeping
-        // text the customer thinks they removed.
-        comment: input.comment?.trim() || undefined,
-        verifiedPurchase,
-      },
-    },
+    comment
+      ? { $set: { rating: input.rating, verifiedPurchase, comment } }
+      : { $set: { rating: input.rating, verifiedPurchase }, $unset: { comment: '' } },
     { new: true, upsert: true, setDefaultsOnInsert: true },
   );
 

@@ -102,3 +102,43 @@ export function canSeeWholesalePricing(
 export function isStaffRole(accountType: AccountType): boolean {
   return accountType === 'admin' || accountType === 'staff';
 }
+
+/* ── Storefront visibility (PRD 4.2 / 4.7) ──────────────────────────────── */
+
+export type Storefront = 'retail' | 'wholesale' | 'all';
+export type ProductVisibility = 'both' | 'retail' | 'wholesale';
+
+type Viewer = { accountType: AccountType; wholesaleStatus: WholesaleStatus };
+
+/**
+ * Which storefront a viewer browses.
+ *
+ * Staff and admin get 'all' so the management list still shows every product
+ * whatever its visibility. A pending or rejected wholesale applicant is not an
+ * approved buyer, so they see the retail storefront — as does a guest.
+ */
+export function storefrontFor(viewer?: Viewer | null): Storefront {
+  if (viewer?.accountType === 'admin' || viewer?.accountType === 'staff') return 'all';
+  return viewer?.accountType === 'wholesale' && viewer.wholesaleStatus === 'approved'
+    ? 'wholesale'
+    : 'retail';
+}
+
+/**
+ * Whether a product may be shown to — or bought by — this viewer.
+ *
+ * The catalogue query already filters on visibility, but that only covers
+ * browsing. Anything that takes a product id straight from the client (product
+ * detail, add to cart, Buy now, checkout) has to ask this too, or a retail
+ * customer who knows the id of a wholesale-only piece could put it in a cart
+ * and be charged the retail price for it.
+ */
+export function isProductVisibleTo(
+  visibility: ProductVisibility | undefined,
+  viewer?: Viewer | null,
+): boolean {
+  const storefront = storefrontFor(viewer);
+  if (storefront === 'all') return true;
+  const effective = visibility ?? 'both';
+  return effective === 'both' || effective === storefront;
+}
